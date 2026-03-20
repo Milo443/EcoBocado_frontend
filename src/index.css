@@ -5,9 +5,6 @@
 /* [MIGRACION v11] PrimeReact v11 introducirá un nuevo sistema de temas ('Aura'/'Nora'). 
    Las importaciones de recursos antiguos como 'lara-light-green' serán reemplazadas 
    por el nuevo sistema de Design Tokens. */
-@import "primereact/resources/themes/lara-light-green/theme.css";
-@import "primereact/resources/primereact.min.css";
-@import "primeicons/primeicons.css";
 
 :root {
   --eco-green-primary: #22c55e;
