@@ -1,52 +1,12 @@
-/* Importación principal de Tailwind v4 */
-@import "tailwindcss";
-
-/* Temas de PrimeReact y estilos adicionales */
-@import "primereact/resources/themes/lara-light-green/theme.css";
-@import "primereact/resources/primereact.min.css";
 @import "primeicons/primeicons.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --eco-green-primary: #22c55e;
-  --eco-green-dark: #15803d;
-}
+/* Restauramos SÓLO los íconos, ya que seguimos usando las clases "pi pi-..." */
 
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-
-/* Customización de las Pestañas de PrimeReact en ProfileHistoryPage */
-.eco-tabs .p-tabview-nav {
-    border-bottom: 1px solid #e2e8f0;
-    background: transparent;
-    padding: 0 1rem;
-}
-
-.eco-tabs .p-tabview-nav li .p-tabview-nav-link {
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #64748b;
-    font-weight: 700;
-    padding: 1.25rem 1.5rem;
-    transition: all 0.2s;
-}
-
-.eco-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-    color: #16a34a; /* text-green-600 */
-    border-color: #16a34a;
-}
-
-.eco-tabs .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
-    color: #334155;
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-
-.eco-tabs .p-tabview-panels {
-    background: transparent;
-    border: none;
 }

@@ -1,104 +1,112 @@
-import React, { useRef, useState } from 'react';
-// IMPORTANTE: Asegúrate de añadir useSpring aquí
-import { motion, useScroll, useTransform, useMotionValueEvent, useSpring } from 'framer-motion';
-
-// 1. IMPORTAMOS EL VIDEO AQUÍ
-// Subimos 3 niveles: components -> landing -> features -> src, y entramos a assets
-import veoVideo from '../../../assets/Video_Generado_con_Veo_.mp4';
+import React, { useRef, useEffect } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import video from "../../../assets/Video_Generado_con_Veo_.mp4";
 
 const ScrollytellingSection = () => {
     const containerRef = useRef(null);
     const videoRef = useRef(null);
-    const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
-    // 1. Capturamos el progreso del scroll normal
+    // 1. Detectamos el progreso del scroll dentro de este contenedor específico.
+    // offset: ["start start", "end end"] significa que empieza cuando la parte superior
+    // del contenedor toca la parte superior de la pantalla, y termina cuando el final toca el final.
     const { scrollYProgress } = useScroll({
         target: containerRef,
         offset: ["start start", "end end"]
     });
 
-    // 2. APLICAMOS EL AMORTIGUADOR (Crucial para el video de 8 segundos)
-    const smoothProgress = useSpring(scrollYProgress, {
-        stiffness: 30,
-        damping: 15,
-        mass: 0.2,
-        restDelta: 0.0001
-    });
+    // 2. Mapeamos el progreso del scroll (0 a 1) al tiempo del video.
+    // Suponiendo que el video dura 5 segundos (cámbialo si tu video dura diferente).
+    const videoDuration = 5; 
+    const currentTime = useTransform(scrollYProgress, [0, 1], [0, videoDuration]);
 
+    // 3. Efecto para actualizar el tiempo del video basado en el scroll.
+    useEffect(() => {
+        const unsubscribe = currentTime.on("change", (latestTime) => {
+            if (videoRef.current) {
+                // Evitamos actualizar si la diferencia es ínfima para mejorar rendimiento
+                if (Math.abs(videoRef.current.currentTime - latestTime) > 0.01) {
+                    videoRef.current.currentTime = latestTime;
+                }
+            }
+        });
+        return () => unsubscribe();
+    }, [currentTime]);
 
-    // 3. Escuchamos 'smoothProgress'
-    useMotionValueEvent(smoothProgress, "change", (latest) => {
-        if (!videoRef.current || !isVideoLoaded) return;
-
-        // Validamos que el video tenga suficientes datos cargados para saltar de tiempo
-        // readyState >= 2 significa HAVE_CURRENT_DATA (puede reproducir el frame actual)
-        if (videoRef.current.readyState >= 2) {
-            
-            // Vamos a imprimir en la consola para ver qué detecta el navegador
-            // Abre las herramientas de desarrollador (F12) para ver esto
-            console.log("Progreso del Scroll:", latest.toFixed(2), "| Duración detectada:", videoRef.current.duration);
-
-            // Usa la duración real detectada o fuerza los 7.9s si falla
-            const duration = isFinite(videoRef.current.duration) && videoRef.current.duration > 0 
-                             ? videoRef.current.duration 
-                             : 7.9;
-
-            requestAnimationFrame(() => {
-                videoRef.current.currentTime = duration * latest;
-            });
-        }
-    });
-
-    // Sincronizamos los textos también con el progreso suave
-    const textOpacity1 = useTransform(smoothProgress, [0, 0.25, 0.35], [0, 1, 0]);
-    const textOpacity2 = useTransform(smoothProgress, [0.35, 0.6, 0.7], [0, 1, 0]);
-    const textOpacity3 = useTransform(smoothProgress, [0.7, 0.85, 1], [0, 1, 1]);
-
-    const handleLoadedMetadata = () => {
-        setIsVideoLoaded(true);
-        videoRef.current.pause();
-    };
+    // 4. Mapeamos el scroll para hacer un efecto de zoom out sutil en el video.
+    const videoScale = useTransform(scrollYProgress, [0, 0.5, 1], [1.1, 1, 1]);
+    
+    // 5. Mapeamos el scroll para opacidad y movimiento del texto superpuesto.
+    const textOpacity = useTransform(scrollYProgress, [0.1, 0.3, 0.5, 0.7], [0, 1, 1, 0]);
+    const textY = useTransform(scrollYProgress, [0.1, 0.3, 0.5, 0.7], [50, 0, 0, -50]);
 
     return (
-        // Quitamos overflow-hidden aquí para no cortar el sticky
-        <section ref={containerRef} className="relative h-[400vh] bg-black text-white">
+        /**
+         * CONTENEDOR PRINCIPAL
+         * h-[400vh]: Define la "longitud" del scroll. A más vh, más lento avanza el video al scrollear.
+         */
+        <div ref={containerRef} className="relative h-[400vh] bg-black w-full overflow-hidden">
+            
+            /**
+             * CONTENEDOR STICKY
+             * Este contenedor se queda fijo en la pantalla (h-screen) mientras scrolleas.
+             */
             <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
                 
-                <video
-                    ref={videoRef}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    playsInline
-                    muted
-                    preload="auto"
-                    // MEJORAS DE CSS: min-w-full, min-h-full, scale-105 y will-change-transform
-                    className="absolute inset-0 min-w-full min-h-full object-cover scale-105 opacity-40 will-change-transform"
+                {/* LA SOLUCIÓN AL ESPACIO NEGRO:
+                  Envolvemos el video en un motion.div que maneja el scale y forzamos
+                  el object-fit: cover en el video.
+                */}
+                <motion.div 
+                    style={{ scale: videoScale }}
+                    className="absolute inset-0 w-full h-full"
                 >
-                    {/* 2. USAMOS LA VARIABLE IMPORTADA AQUÍ */}
-                    <source src={veoVideo} type="video/mp4" />
-                    Tu navegador no soporta videos.
-                </video>
+                    <video
+                        ref={videoRef}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                        // object-cover: Escala el video para cubrir TODO el contenedor sin dejar espacios negros.
+                        // object-center: Mantiene el centro del video siempre visible.
+                    >
+                        {/* REEMPLAZA ESTA URL POR TU VIDEO REAL */}
+                        <source src={video} type="video/mp4" />
+                        Tu navegador no soporta videos.
+                    </video>
+                </motion.div>
 
-                {/* Filtro extra (Viñeta negra) para resaltar texto sobre videos claros */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.8)_100%)] z-0 pointer-events-none"></div>
+                {/* Capa superpuesta oscura (Overlay) para mejorar legibilidad del texto */}
+                <div className="absolute inset-0 bg-black/40 z-10" />
 
-                <div className="relative z-10 max-w-4xl text-center px-6">
-                    <motion.div style={{ opacity: textOpacity1 }} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-sm font-semibold text-green-400 uppercase tracking-widest mb-4">La Realidad</span>
-                        <h3 className="text-5xl md:text-7xl font-extrabold leading-tight drop-shadow-xl shadow-black">Toneladas de comida se desperdician cada día.</h3>
-                    </motion.div>
+                {/* TEXTO SUPERPUESTO (Sincronizado con el scroll) */}
+                <motion.div 
+                    style={{ opacity: textOpacity, y: textY }}
+                    className="relative z-20 text-center px-6 max-w-4xl"
+                >
+                    <span className="inline-block bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full mb-4 shadow-lg shadow-green-500/30 uppercase tracking-widest">
+                        Tecnología en tiempo real
+                    </span>
+                    <h2 className="text-5xl md:text-7xl font-black text-white leading-tight tracking-tighter">
+                        Logística inteligente <br/> para impacto local.
+                    </h2>
+                    <p className="text-xl md:text-2xl text-gray-200 mt-6 leading-relaxed max-w-2xl mx-auto">
+                        EcoBocado utiliza geolocalización avanzada para conectar excedentes con fundaciones en minutos, no horas.
+                    </p>
+                </motion.div>
 
-                    <motion.div style={{ opacity: textOpacity2 }} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-sm font-semibold text-green-400 uppercase tracking-widest mb-4">La Conexión</span>
-                        <h3 className="text-5xl md:text-7xl font-extrabold leading-tight drop-shadow-xl shadow-black">EcoBocado une excedentes con necesidad en tiempo real.</h3>
-                    </motion.div>
-
-                    <motion.div style={{ opacity: textOpacity3 }} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-sm font-semibold text-green-400 uppercase tracking-widest mb-4">La Solución</span>
-                        <h3 className="text-5xl md:text-7xl font-extrabold leading-tight drop-shadow-xl shadow-black">Transforma el desperdicio en oportunidades.</h3>
-                    </motion.div>
+                {/* Indicador visual de scroll en la parte inferior */}
+                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+                    <span className="text-xs text-white/60 font-medium uppercase tracking-widest">Scrollea para ver la magia</span>
+                    <div className="w-5 h-9 border-2 border-white/30 rounded-full p-1 relative">
+                        <motion.div 
+                            animate={{ y: [0, 12, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            className="w-2 h-2 bg-green-500 rounded-full"
+                        />
+                    </div>
                 </div>
             </div>
-        </section>
+        </div>
     );
 };
 
