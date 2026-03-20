@@ -2,6 +2,9 @@
 
 Plataforma colaborativa para la reducción del desperdicio de alimentos y el apoyo a comunidades vulnerables.
 
+## 🔗 Demo en Vivo
+Puedes ver la demo interactiva aquí: [https://milo443.github.io/EcoBocado_frontend/](https://milo443.github.io/EcoBocado_frontend/)
+
 ## ⚠️ Estado del Proyecto: Backend en Construcción
 
 > [!IMPORTANT]
