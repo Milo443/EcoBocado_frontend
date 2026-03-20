@@ -2,6 +2,9 @@
 @import "tailwindcss";
 
 /* Temas de PrimeReact y estilos adicionales */
+/* [MIGRACION v11] PrimeReact v11 introducirá un nuevo sistema de temas ('Aura'/'Nora'). 
+   Las importaciones de recursos antiguos como 'lara-light-green' serán reemplazadas 
+   por el nuevo sistema de Design Tokens. */
 @import "primereact/resources/themes/lara-light-green/theme.css";
 @import "primereact/resources/primereact.min.css";
 @import "primeicons/primeicons.css";
@@ -9,6 +12,12 @@
 :root {
   --eco-green-primary: #22c55e;
   --eco-green-dark: #15803d;
+}
+
+/* Filtro para transformar azules del logo en verde EcoBocado */
+.eco-logo-filter {
+  filter: hue-rotate(650deg) saturate(0.9) brightness(1.1);
+  mix-blend-mode: multiply;
 }
 
 body {

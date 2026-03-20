@@ -1,4 +1,5 @@
 import React from 'react';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { Button } from 'primereact/button';
 import { Link } from 'react-router-dom';
@@ -63,12 +64,7 @@ const ActiveReservations = () => {
 
                     {/* Código QR Generado Dinámicamente */}
                     <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-100 mb-6 transition-transform hover:scale-105">
-                        <QRCode 
-                            value={reservaActiva.codigo_qr_token} 
-                            size={180}
-                            fgColor="#0f172a" // slate-900
-                            level="H" // Alta corrección de errores (fácil escaneo)
-                        />
+                        {QRCode && (QRCode.default ? <QRCode.default value={reservaActiva.codigo_qr_token} size={180} fgColor="#0f172a" level="H" /> : <QRCode value={reservaActiva.codigo_qr_token} size={180} fgColor="#0f172a" level="H" />)}
                     </div>
                     <p className="text-slate-400 text-xs font-mono mb-6 tracking-widest uppercase">{reservaActiva.id}</p>
 

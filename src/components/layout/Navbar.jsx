@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from 'primereact/button';
 import { Link } from 'react-router-dom';
+import brandLogo from '../../assets/vegan_12589452.gif';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -21,10 +22,12 @@ const Navbar = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-            <i className="pi pi-bolt text-white text-xl"></i>
-          </div>
+        <div className="flex items-center gap-3">
+          <img 
+            src={brandLogo} 
+            alt="EcoBocado Logo" 
+            className="w-10 h-10 object-contain eco-logo-filter"
+          />
           <span className="text-2xl font-bold text-gray-900 tracking-tight">
             Eco<span className="text-green-600">Bocado</span>
           </span>
