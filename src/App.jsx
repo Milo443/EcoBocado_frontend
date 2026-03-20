@@ -33,7 +33,7 @@ const AppContent = () => {
   }, [startLoading, stopLoading]);
 
   return (
-    <Router>
+    <Router basename={import.meta.env.BASE_URL}>
       <div className="App">
         <SplashScreen isLoading={isLoading} />
         <Routes>
