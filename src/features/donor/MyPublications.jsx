@@ -1,53 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import PageHeader from '../../components/layout/PageHeader';
+import { loteService } from '../../services/loteService';
+import { useLoading } from '../../contexts/LoadingContext';
+import PublishFoodModal from './components/PublishFoodModal';
+import EditFoodModal from './components/EditFoodModal';
+import { Toast } from 'primereact/toast';
 
 const MyPublications = () => {
-    const [publications] = useState([
-        {
-            id: 1,
-            titulo: 'Panadería Mixta',
-            cantidad: '3 kg',
-            estado: 'Activo',
-            fecha: '2024-03-20',
-            categoria: 'Panadería',
-            imagen: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=400&h=300&auto=format&fit=crop'
-        },
-        {
-            id: 2,
-            titulo: 'Verduras variadas',
-            cantidad: '5 kg',
-            estado: 'Reservado',
-            fecha: '2024-03-19',
-            categoria: 'Frutas y Verduras',
-            imagen: 'https://images.unsplash.com/photo-1566385101042-1a000c126ec7?q=80&w=400&h=300&auto=format&fit=crop'
-        },
-        {
-            id: 3,
-            titulo: 'Postres y pasteles',
-            cantidad: '1.5 kg',
-            estado: 'Completado',
-            fecha: '2024-03-18',
-            categoria: 'Repostería',
-            imagen: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=400&h=300&auto=format&fit=crop'
-        },
-        {
-            id: 4,
-            titulo: 'Fruta de Temporada',
-            cantidad: '10 kg',
-            estado: 'Activo',
-            fecha: '2024-03-17',
-            categoria: 'Frutas y Verduras',
-            imagen: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=400&h=300&auto=format&fit=crop'
+    const [publications, setPublications] = useState([]);
+    const { setIsLoading: setGlobalLoading } = useLoading();
+    const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedLote, setSelectedLote] = useState(null);
+    const toast = React.useRef(null);
+
+    const fetchPublications = async () => {
+        try {
+            const data = await loteService.getMisLotes();
+            setPublications(data);
+        } catch (error) {
+            console.error("Error fetching publications:", error);
         }
-    ]);
+    };
+
+    const handlePublish = async (nuevoLoteData) => {
+        setGlobalLoading(true);
+        try {
+            await loteService.publish(nuevoLoteData);
+            await fetchPublications();
+            setIsPublishModalOpen(false);
+            toast.current.show({ severity: 'success', summary: 'Éxito', detail: 'Publicación creada correctamente' });
+        } catch (error) {
+            console.error("Error publishing lote:", error);
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo crear la publicación' });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
+    const handleEdit = (lote) => {
+        setSelectedLote(lote);
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdate = async (loteId, updatedData) => {
+        setGlobalLoading(true);
+        try {
+            await loteService.update(loteId, updatedData);
+            await fetchPublications();
+            setIsEditModalOpen(false);
+            toast.current.show({ severity: 'success', summary: 'Actualizado', detail: 'Publicación actualizada correctamente' });
+        } catch (error) {
+            console.error("Error updating lote:", error);
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo actualizar la publicación' });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
+    const handleDelete = async (loteId) => {
+        setGlobalLoading(true);
+        try {
+            await loteService.delete(loteId);
+            await fetchPublications();
+            toast.current.show({ severity: 'success', summary: 'Eliminado', detail: 'Publicación eliminada correctamente' });
+        } catch (error) {
+            console.error("Error deleting lote:", error);
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar la publicación' });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        setGlobalLoading(true);
+        fetchPublications().finally(() => setGlobalLoading(false));
+    }, []);
 
     const getSeverity = (publication) => {
         switch (publication.estado) {
-            case 'Activo': return 'success';
-            case 'Reservado': return 'warning';
-            case 'Completado': return 'secondary';
+            case 'ACTIVO': return 'success';
+            case 'RESERVADO': return 'warning';
+            case 'COMPLETADO': return 'secondary';
             default: return null;
         }
     };
@@ -58,7 +94,7 @@ const MyPublications = () => {
                 <div className="relative overflow-hidden h-64">
                     <img
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        src={publication.imagen}
+                        src={publication.imagen_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000'}
                         alt={publication.titulo}
                     />
                     <div className="absolute top-4 right-4">
@@ -84,11 +120,15 @@ const MyPublications = () => {
                     <div className="flex items-center justify-between pt-8 border-t border-slate-100 mt-auto">
                         <div className="flex flex-col">
                             <span className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mb-1">Fecha de publicación</span>
-                            <span className="text-base text-slate-700 font-black">{publication.fecha}</span>
+                            <span className="text-base text-slate-700 font-black">
+                                {new Date(publication.fecha_creacion || Date.now()).toLocaleDateString()}
+                            </span>
                         </div>
                         <div className="flex gap-3">
-                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text p-button-secondary bg-slate-50 hover:bg-slate-100 transition-all w-12 h-12" tooltip="Editar" />
-                            <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger bg-red-50 hover:bg-red-100 transition-all w-12 h-12" tooltip="Eliminar" />
+                            <Button icon="pi pi-pencil" onClick={() => handleEdit(publication)} className="p-button-rounded p-button-text p-button-secondary bg-slate-50 hover:bg-slate-100 transition-all w-12 h-12" tooltip="Editar" />
+                            {publication.estado === 'ACTIVO' && (
+                                <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger bg-red-50 hover:bg-red-100 transition-all w-12 h-12" onClick={() => handleDelete(publication.id)} tooltip="Eliminar" />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -98,6 +138,7 @@ const MyPublications = () => {
 
     return (
         <div className="animate-fade-in max-w-7xl mx-auto pb-12">
+            <Toast ref={toast} />
             <PageHeader
                 title="Mis Publicaciones"
                 description="Gestiona tus excedentes y sigue el impacto de tus donaciones en tiempo real."
@@ -107,7 +148,8 @@ const MyPublications = () => {
                     <Button
                         label="Nueva Publicación"
                         icon="pi pi-plus"
-                        className="p-button-success p-button-raised rounded-2xl px-8 py-4 font-black shadow-green-200 shadow-2xl transition-all hover:scale-105"
+                        onClick={() => setIsPublishModalOpen(true)}
+                        className="p-button-success shadow-green-500/30 shadow-lg rounded-xl px-6 py-3 font-bold w-full sm:w-auto text-lg"
                     />
                 }
             />
@@ -119,6 +161,32 @@ const MyPublications = () => {
                     </div>
                 ))}
             </div>
+
+            {publications.length === 0 && (
+                <div className="text-center py-20 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200 mt-8">
+                    <i className="pi pi-inbox text-7xl text-slate-200 mb-6"></i>
+                    <h3 className="text-2xl font-black text-slate-400">Sin publicaciones</h3>
+                    <p className="text-slate-500 mb-8 max-w-xs mx-auto">Aún no has compartido ningún excedente. ¡Empieza hoy!</p>
+                    <Button
+                        label="Crear primera publicación"
+                        icon="pi pi-plus"
+                        className="p-button-success shadow-xl px-8 py-4 rounded-2xl font-black"
+                    />
+                </div>
+            )}
+
+            <PublishFoodModal
+                visible={isPublishModalOpen}
+                onHide={() => setIsPublishModalOpen(false)}
+                onPublish={handlePublish}
+            />
+
+            <EditFoodModal
+                visible={isEditModalOpen}
+                onHide={() => setIsEditModalOpen(false)}
+                onUpdate={handleUpdate}
+                lote={selectedLote}
+            />
         </div>
     );
 };

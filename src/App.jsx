@@ -42,6 +42,8 @@ const AppContent = () => {
           <Route path="/login" element={<LoginPage />} />
           
           {/* Rutas de Donante con Layout */}
+          {/* aqui quedara el auth guard */}
+
           <Route path="/donante" element={<DonorLayout />}>
             <Route path="dashboard" element={<DonorDashboard />} />
             <Route path="publicaciones" element={<MyPublications />} />
@@ -62,10 +64,14 @@ const AppContent = () => {
   );
 };
 
+import { AuthProvider } from './contexts/AuthContext';
+
 function App() {
   return (
     <LoadingProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </LoadingProvider>
   );
 }

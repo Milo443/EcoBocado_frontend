@@ -10,7 +10,7 @@ export const LoadingProvider = ({ children }) => {
     const stopLoading = useCallback(() => setIsLoading(false), []);
 
     return (
-        <LoadingContext.Provider value={{ isLoading, startLoading, stopLoading }}>
+        <LoadingContext.Provider value={{ isLoading, setIsLoading, startLoading, stopLoading }}>
             {children}
         </LoadingContext.Provider>
     );

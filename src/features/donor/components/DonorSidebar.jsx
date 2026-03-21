@@ -1,7 +1,21 @@
 import { Link, NavLink } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import brandLogo from '../../../assets/vegan_12589452.gif';
+import { authService } from '../../../services/authService';
 
 const DonorSidebar = () => {
+
+const [profile, setProfile] = React.useState(null);
+const [isLoading, setIsLoading] = React.useState(true);
+
+    useEffect(() => {
+            setIsLoading(true);
+            authService.getPerfil()
+                .then(data => setProfile(data))
+                .catch(err => console.error("Error loading profile:", err))
+                .finally(() => setIsLoading(false));
+        }, [setIsLoading]);
+
     const navItems = [
         { label: 'Vista General', icon: 'pi pi-th-large', to: '/donante/dashboard' },
         { label: 'Mis Publicaciones', icon: 'pi pi-list', to: '/donante/publicaciones' },
@@ -49,12 +63,16 @@ const DonorSidebar = () => {
             {/* Perfil y Logout */}
             <div className="p-4 border-t border-slate-100 shrink-0">
                 <div className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold shrink-0">
-                        PS
+                    <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold shrink-0 uppercase">
+                        {profile?.nombre ? profile.nombre.charAt(0) : 'D'}
                     </div>
                     <div className="overflow-hidden">
-                        <p className="text-sm font-bold text-slate-800 truncate">Panadería San José</p>
-                        <p className="text-xs text-slate-500 truncate">donante@test.com</p>
+                        <p className="text-sm font-bold text-slate-800 truncate">
+                            {profile?.nombre || 'Cargando...'}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                            {profile?.email || ''}
+                        </p>
                     </div>
                 </div>
                 <Link to="/" className="block">

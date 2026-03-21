@@ -1,10 +1,19 @@
-import { Link, NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import brandLogo from '../../../assets/vegan_12589452.gif';
+import { authService } from '../../../services/authService';
+import { NavLink, Link } from 'react-router-dom';
 
 const ReceptorSidebar = () => {
+    const [profile, setProfile] = useState(null);
+
+    useEffect(() => {
+        authService.getPerfil()
+            .then(setProfile)
+            .catch(err => console.error("Error loading profile:", err));
+    }, []);
     const navItems = [
         { label: 'Explorar Mapa', icon: 'pi pi-map-marker', to: '/receptor/explorar' },
-        { label: 'Mis Reservas', icon: 'pi pi-shopping-bag', to: '/receptor/reservas', badge: 1 },
+        { label: 'Mis Reservas', icon: 'pi pi-shopping-bag', to: '/receptor/reservas', badge: 0 },
         { label: 'Historial', icon: 'pi pi-history', to: '/receptor/historial' },
         { label: 'Configuración', icon: 'pi pi-cog', to: '/receptor/configuracion' },
     ];
@@ -13,7 +22,7 @@ const ReceptorSidebar = () => {
         <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-sm">
             {/* Logo */}
             <div className="h-24 flex items-center px-6 border-b border-slate-100 shrink-0">
-                <Link to="/receptor/explorar" className="flex items-center gap-3 group">
+                <Link to="/receptor/dashboard" className="flex items-center gap-3 group">
                     <img 
                         src={brandLogo} 
                         alt="EcoBocado Logo" 
@@ -57,12 +66,18 @@ const ReceptorSidebar = () => {
             {/* Perfil y Logout */}
             <div className="p-4 border-t border-slate-100 shrink-0">
                 <div className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold shrink-0">
-                        FM
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold shrink-0 uppercase">
+                        {profile?.nombre ? profile.nombre.charAt(0) : 'R'}
                     </div>
                     <div className="overflow-hidden">
-                        <p className="text-sm font-bold text-slate-800 truncate">Fundación Manos</p>
-                        <p className="text-xs text-slate-500 truncate">receptor@test.com</p>
+                        <p className="text-sm font-bold text-slate-800 truncate">
+                            {profile?.nombre 
+                                ? (profile.nombre.charAt(0).toUpperCase() + profile.nombre.slice(1)) 
+                                : 'Cargando...'} 
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                            {profile?.email || ''}
+                        </p>
                     </div>
                 </div>
                 <Link to="/" className="block">

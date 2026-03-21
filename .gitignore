@@ -34,3 +34,5 @@ dist-ssr
 final_lint_receptor.txt
 lint_receptor_output.txt
 *.txt
+docs/
+

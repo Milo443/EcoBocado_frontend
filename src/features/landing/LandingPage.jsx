@@ -3,9 +3,11 @@ import React, { useEffect, useRef } from 'react';
 import { motion, useInView, useMotionValue, animate, useTransform } from 'framer-motion';
 import { Button } from 'primereact/button';
 import Navbar from "../../components/layout/Navbar.jsx";
+import { useNavigate } from 'react-router-dom';
 import ScrollytellingSection from './components/ScrollytellingSection.jsx';
 import ContactForm from './components/ContactForm.jsx';
 import Footer from './components/Footer.jsx';
+import { impactoService } from '../../services/impactoService';
 
 const Counter = ({ value, label, suffix = "", colorClass = "text-green-500" }) => {
     const ref = useRef(null);
@@ -36,6 +38,18 @@ const Counter = ({ value, label, suffix = "", colorClass = "text-green-500" }) =
 };
 
 const LandingPage = () => {
+    const navigate = useNavigate();
+    const [stats, setStats] = React.useState({
+        total_rescatado_kg: 8400,
+        personas_ayudadas: 12000,
+        aliados_red: 56,
+        co2_mitigado_kg: 1500
+    });
+
+    useEffect(() => {
+        impactoService.getGlobal().then(setStats).catch(console.error);
+    }, []);
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
@@ -75,11 +89,13 @@ const LandingPage = () => {
                                 label="Empezar a Donar"
                                 icon="pi pi-arrow-right"
                                 iconPos="right"
+                                onClick={() => navigate('/donante/dashboard')}
                                 className="p-button-lg bg-green-600 border-none px-10 py-5 rounded-2xl shadow-xl shadow-green-500/40 font-bold hover:scale-105 transition-transform"
                             />
                             <Button
                                 label="Explorar Red"
                                 icon="pi pi-map"
+                                onClick={() => navigate('/receptor/explorar')}
                                 className="p-button-lg p-button-text text-slate-900 border-2 border-slate-200 px-10 py-5 rounded-2xl font-bold hover:bg-slate-100 transition-colors"
                             />
                         </motion.div>
@@ -109,7 +125,7 @@ const LandingPage = () => {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs font-black text-green-600 uppercase tracking-widest mb-1">Impacto Real</p>
-                                    <p className="font-bold text-slate-900 text-lg leading-none">8.4k kg Rescatados</p>
+                                    <p className="font-bold text-slate-900 text-lg leading-none">{stats.total_rescatado_kg >= 1000 ? (stats.total_rescatado_kg / 1000).toFixed(1) + 'k' : stats.total_rescatado_kg} kg Rescatados</p>
                                     <p className="text-xs text-slate-500 mt-2 font-medium">Actualizado hace unos segundos</p>
                                 </div>
                             </motion.div>
@@ -233,9 +249,9 @@ const LandingPage = () => {
 
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-                        <Counter value={8400} label="KG Rescatados" suffix="+" colorClass="text-green-500" />
-                        <Counter value={12000} label="Vidas Alcanzadas" suffix="+" colorClass="text-blue-400" />
-                        <Counter value={56} label="Aliados Activos" colorClass="text-purple-400" />
+                        <Counter value={stats.total_rescatado_kg} label="KG Rescatados" suffix="+" colorClass="text-green-500" />
+                        <Counter value={stats.personas_ayudadas} label="Vidas Alcanzadas" suffix="+" colorClass="text-blue-400" />
+                        <Counter value={stats.aliados_red} label="Aliados Activos" colorClass="text-purple-400" />
                     </div>
                 </div>
             </section>

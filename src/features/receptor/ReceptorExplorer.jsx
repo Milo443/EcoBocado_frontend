@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from 'primereact/button';
@@ -8,30 +8,67 @@ import { Toast } from 'primereact/toast';
 import { Link } from 'react-router-dom';
 import mapaCali from '../../assets/mapa-cali.png';
 import ReceptorSidebar from './components/ReceptorSidebar';
+import { loteService } from '../../services/loteService';
+import { useLoading } from '../../contexts/LoadingContext';
+
+import { reservaService } from '../../services/reservaService';
 
 const ReceptorExplorer = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
+    const [lotesDisponibles, setLotesDisponibles] = useState([]);
     const toast = useRef(null);
+    const { setIsLoading: setGlobalLoading } = useLoading();
 
-    // Mock de datos (Geolocalizados simulados)
-    const lotesDisponibles = [
-        { id: 1, donante: 'Panadería San José', titulo: 'Panadería Mixta', cantidad: '3 kg', distancia: '1.2 km', caduca: '2 horas', pinClass: 'top-1/4 left-1/3', x: 33, y: 25 },
-        { id: 2, donante: 'Fruver El Campesino', titulo: 'Caja de Verduras', cantidad: '5 kg', distancia: '3.5 km', caduca: '45 mins', pinClass: 'top-1/2 left-2/3', x: 66, y: 50, urgente: true },
-        { id: 3, donante: 'Restaurante La Olla', titulo: 'Sopa y Seco', cantidad: '4 raciones', distancia: '800 m', caduca: '4 horas', pinClass: 'bottom-1/3 left-1/2', x: 50, y: 66 }
-    ];
+    const fetchLotes = async () => {
+        try {
+            const data = await loteService.getActivos();
+            const mappingLotes = data.map((lote) => ({
+                ...lote,
+                x: lote.x || Math.floor(Math.random() * 80) + 10,
+                y: lote.y || Math.floor(Math.random() * 80) + 10,
+                distancia: lote.distancia || `${(Math.random() * 5).toFixed(1)} km`,
+                urgente: new Date(lote.fecha_caducidad) - new Date() < 3600000 
+            }));
+            setLotesDisponibles(mappingLotes);
+        } catch (error) {
+            console.error("Error fetching lotes:", error);
+        }
+    };
 
-    const handleReservar = (lote, e) => {
+    useEffect(() => {
+        setGlobalLoading(true);
+        fetchLotes().finally(() => setGlobalLoading(false));
+    }, []);
+
+    const handleReservar = async (lote, e) => {
         e.stopPropagation();
-        toast.current.show({
-            severity: 'success', 
-            summary: 'Reserva Confirmada', 
-            detail: `Has reservado ${lote.titulo} de ${lote.donante}`, 
-            life: 3000,
-            pt: {
-                root: { className: "rounded-2xl border-l-4 border-green-500 shadow-xl" }
-            }
-        });
+        setGlobalLoading(true);
+        try {
+            await reservaService.reservar(lote.id);
+            toast.current.show({
+                severity: 'success', 
+                summary: 'Reserva Exitosa', 
+                detail: `Has reservado ${lote.titulo}. Revisa "Mis Reservas" para el QR.`, 
+                life: 5000,
+            });
+            await fetchLotes();
+        } catch (error) {
+            toast.current.show({
+                severity: 'error', 
+                summary: 'Error', 
+                detail: error.message || 'No se pudo procesar la reserva', 
+            });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
+    const formatTimeLeft = (dateString) => {
+        const diff = new Date(dateString) - new Date();
+        if (diff < 0) return 'Expirado';
+        const mins = Math.floor(diff / (1000 * 60));
+        return mins > 60 ? `En ${Math.floor(mins/60)}h ${mins%60}m` : `En ${mins}m`;
     };
 
     const alertTemplate = (lote) => (
@@ -41,17 +78,31 @@ const ReceptorExplorer = () => {
         >
             <div className="flex justify-between items-start mb-2">
                 <div className={`text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 ${lote.urgente ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
-                    <i className="pi pi-clock text-[10px]"></i> {lote.caduca}
+                    <i className="pi pi-clock text-[10px]"></i> {formatTimeLeft(lote.fecha_caducidad)}
                 </div>
                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
                     {lote.distancia}
                 </span>
             </div>
 
-            <h4 className="font-bold text-slate-900 text-base leading-tight mb-1">{lote.titulo}</h4>
-            <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">
-                <i className="pi pi-map-marker text-[10px]"></i> {lote.donante}
-            </p>
+            <div className="flex gap-3 mb-3">
+                <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden border border-slate-100">
+                    {lote.imagen_url ? (
+                        <img src={lote.imagen_url} alt={lote.titulo} className="w-full h-full object-cover" />
+                    ) : (
+                        <i className="pi pi-shopping-bag text-slate-300 text-xl"></i>
+                    )}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <h4 className="font-bold text-slate-900 text-base leading-tight mb-1 truncate">{lote.titulo}</h4>
+                    <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                        <i className="pi pi-map-marker text-[10px]"></i> {lote.donante_nombre || 'Establecimiento Local'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{lote.categoria || 'OTROS'}</span>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex justify-between items-center pt-3 border-t border-slate-50">
                 <span className="text-slate-600 font-bold text-xs">{lote.cantidad}</span>
@@ -66,8 +117,6 @@ const ReceptorExplorer = () => {
         </div>
     );
 
-
-
     return (
         <div className="h-full bg-slate-50 font-sans selection:bg-green-200 overflow-hidden relative">
             <Toast ref={toast} position="top-right" />
@@ -79,7 +128,6 @@ const ReceptorExplorer = () => {
                 <div className="absolute inset-0 z-0 bg-slate-200">
                     <img
                         src={mapaCali}
-
                         alt="Mapa de la ciudad"
                         className="w-full h-full object-cover opacity-60 mix-blend-multiply"
                     />
@@ -88,7 +136,8 @@ const ReceptorExplorer = () => {
                     {lotesDisponibles.map((lote) => (
                         <motion.div
                             key={`pin-${lote.id}`}
-                            className={`absolute ${lote.pinClass} transform -translate-x-1/2 -translate-y-full cursor-pointer group`}
+                            style={{ top: `${lote.y}%`, left: `${lote.x}%` }}
+                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer group`}
                             initial={{ y: -20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             whileHover={{ scale: 1.1 }}
@@ -108,7 +157,7 @@ const ReceptorExplorer = () => {
 
                             {/* Tooltip Hover */}
                             <div className="absolute top-12 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
-                                {lote.distancia}
+                                {lote.titulo} - {lote.distancia}
                             </div>
                         </motion.div>
                     ))}
@@ -144,6 +193,13 @@ const ReceptorExplorer = () => {
                                     content: { className: "bg-transparent border-none p-0" }
                                 }}
                             />
+                            
+                            {lotesDisponibles.length === 0 && (
+                                <div className="text-center py-10">
+                                    <i className="pi pi-map text-4xl text-slate-300 mb-2"></i>
+                                    <p className="text-slate-400 font-bold">No hay donaciones activas en este momento.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
