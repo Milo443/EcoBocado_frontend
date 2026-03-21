@@ -1,16 +1,44 @@
-# React + Vite
+# EcoBocado Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plataforma colaborativa para la reducción del desperdicio de alimentos y el apoyo a comunidades vulnerables.
 
-Currently, two official plugins are available:
+## 🔗 Demo en Vivo
+Puedes ver la demo interactiva aquí: [https://milo443.github.io/EcoBocado_frontend/](https://milo443.github.io/EcoBocado_frontend/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ⚠️ Estado del Proyecto: Backend en Construcción
 
-## React Compiler
+> [!IMPORTANT]
+> Actualmente, gran parte de la funcionalidad y los datos que se muestran en la interfaz son **placeholders** (marcadores de posición) o datos estáticos (mock data). El **backend del proyecto se encuentra en fase de desarrollo**, por lo que la interacción con servidores reales es limitada o inexistente en esta etapa.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🏗️ Estructura del Proyecto
 
-## Expanding the ESLint configuration
+El proyecto está organizado siguiendo una arquitectura modular basada en características (features), lo que facilita la escalabilidad y el mantenimiento:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### `/src`
+- **`/assets`**: Recursos estáticos como imágenes, iconos y estilos globales.
+- **`/components`**: Componentes de interfaz de usuario reutilizables (Botones, Inputs, Layouts, etc.).
+- **`/config`**: Archivos de configuración de la aplicación (variables de entorno, constantes).
+- **`/contexts`**: Manejo del estado global mediante React Context (Autenticación, preferencias, etc.).
+- **`/features`**: Contiene la lógica principal dividida por módulos funcionales:
+    - **`auth`**: Gestión de inicio de sesión, registro y recuperación de cuenta.
+    - **`donor`**: Interfaz y lógica para donantes (publicaciones, dashboard de impacto).
+    - **`receptor`**: Interfaz y lógica para receptores (exploración de alimentos, solicitudes).
+    - **`landing`**: Página de inicio informativa y secciones públicas.
+
+## 🚀 Tecnologías Principales
+
+- **React** + **Vite**: Para un desarrollo rápido y eficiente.
+- **Tailwind CSS**: Para un diseño moderno y responsive.
+- **Lucide React**: Biblioteca de iconos.
+
+## 🛠️ Instalación y Desarrollo
+
+1. Instala las dependencias:
+   ```bash
+   npm install
+   ```
+
+2. Ejecuta el servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```

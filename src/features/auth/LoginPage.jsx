@@ -7,39 +7,85 @@ import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { authService } from '../../services/authService';
+import { useAuth } from '../../contexts/AuthContext';
+import { Toast } from 'primereact/toast';
+
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
+    const [step, setStep] = useState(1); // 1: Email, 2: OTP
+    const [email, setEmail] = useState('');
+    const toast = React.useRef(null);
+    const { login } = useAuth();
     const navigate = useNavigate();
 
-    const { control, handleSubmit, formState: { errors } } = useForm({
+    const { control, handleSubmit, formState: { errors }, watch } = useForm({
         defaultValues: {
             email: '',
-            password: ''
+            otp_code: ''
         }
     });
 
-    const onSubmit = (data) => {
+    const watchEmail = watch("email");
+
+    const onSendOtp = async (data) => {
         setIsLoading(true);
-        console.log("Intentando iniciar sesión con:", data);
-        
-        setTimeout(() => {
+        try {
+            await authService.requestOtp(data.email);
+            setEmail(data.email);
+            setStep(2);
+            toast.current.show({ 
+                severity: 'info', 
+                summary: 'Código Enviado', 
+                detail: 'Revisa tu bandeja de entrada' 
+            });
+        } catch (error) {
+            toast.current.show({ 
+                severity: 'error', 
+                summary: 'Error', 
+                detail: error.message || 'No se pudo enviar el código' 
+            });
+        } finally {
             setIsLoading(false);
-            if (data.email.includes('donante@mail.com')) {
+        }
+    };
+
+    const onVerifyOtp = async (data) => {
+        setIsLoading(true);
+        try {
+            const response = await authService.verifyOtp(email, data.otp_code);
+            login(response.usuario, response.access_token);
+            
+            toast.current.show({ 
+                severity: 'success', 
+                summary: 'Bienvenido', 
+                detail: 'Sesión iniciada correctamente' 
+            });
+
+            // Redirección basada en rol
+            if (response.usuario.rol === 'DONOR') {
                 navigate('/donante/dashboard');
-            } else if (data.email.includes('receptor@mail.com')) {
-                navigate('/receptor/explorar');
             } else {
-                navigate('/donante/dashboard');
+                navigate('/receptor/explorar');
             }
-        }, 1500);
+        } catch (error) {
+            toast.current.show({ 
+                severity: 'error', 
+                summary: 'Código Inválido', 
+                detail: 'El código ingresado es incorrecto o ha expirado' 
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const getFormErrorMessage = (name) => {
-        return errors[name] ? <small className="p-error text-red-500 mt-1 block">{errors[name].message}</small> : <small className="p-error text-red-500 mt-1 block">&nbsp;</small>;
+        return errors[name] ? <small className="p-error text-red-500 mt-1 block">{errors[name].message}</small> : null;
     };
 
     return (
         <div className="min-h-screen flex bg-gray-50">
+            <Toast ref={toast} />
             
             {/* Panel Izquierdo: Imagen Decorativa */}
             <div className="hidden lg:block w-1/2 relative bg-green-900">
@@ -68,69 +114,59 @@ const LoginPage = () => {
                     <Link to="/" className="text-green-600 font-bold text-2xl mb-6 inline-block">
                         <i className="pi pi-bolt mr-2"></i>EcoBocado
                     </Link>
-                    <h2 className="text-4xl font-extrabold text-gray-900 mb-2">Iniciar Sesión</h2>
-                    <p className="text-gray-500">Ingresa tus credenciales para acceder a tu panel.</p>
+                    <h2 className="text-4xl font-extrabold text-gray-900 mb-2">
+                        {step === 1 ? 'Iniciar Sesión' : 'Verificar Identidad'}
+                    </h2>
+                    <p className="text-gray-500">
+                        {step === 1 
+                            ? 'Ingresa tu correo para recibir un código de acceso único.' 
+                            : `Hemos enviado un código de 6 dígitos a ${email}`}
+                    </p>
                 </div>
 
-                {/* --- BURBUJA DE INFORMACIÓN (MODO SIMULACIÓN) --- */}
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg shadow-sm">
-                    <div className="flex">
-                        <div className="flex-shrink-0">
-                            <i className="pi pi-info-circle text-blue-500 text-xl"></i>
+                <form onSubmit={handleSubmit(step === 1 ? onSendOtp : onVerifyOtp)} className="flex flex-col gap-4">
+                    {step === 1 ? (
+                        <div className="flex flex-col">
+                            <label className="font-semibold text-gray-700 mb-1">Correo Electrónico</label>
+                            <Controller name="email" control={control} rules={{ 
+                                required: 'El correo es obligatorio',
+                                pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i, message: 'Correo inválido' }
+                            }} render={({ field, fieldState }) => (
+                                <InputText id={field.name} {...field} className={classNames('w-full p-4 text-lg rounded-xl', { 'p-invalid': fieldState.invalid })} placeholder="ej. donante@test.com" />
+                            )} />
+                            {getFormErrorMessage('email')}
                         </div>
-                        <div className="ml-3">
-                            <h3 className="text-sm font-bold text-blue-800">Modo Simulación (Frontend)</h3>
-                            <div className="mt-2 text-sm text-blue-700">
-                                <ul className="list-disc pl-5 space-y-1">
-                                    <li>Usa la palabra <strong>"donante@mail.com"</strong> en el correo para ver el Panel del Restaurante.</li>
-                                    <li>Usa la palabra <strong>"receptor@mail.com"</strong> en el correo para ver el Mapa Explorador.</li>
-                                    <li><em>La contraseña puede ser cualquiera.</em></li>
-                                </ul>
-                            </div>
+                    ) : (
+                        <div className="flex flex-col">
+                            <label className="font-semibold text-gray-700 mb-1">Código de Acceso (OTP)</label>
+                            <Controller name="otp_code" control={control} rules={{ 
+                                required: 'El código es obligatorio',
+                                minLength: { value: 6, message: 'Debe tener 6 dígitos' }
+                            }} render={({ field, fieldState }) => (
+                                <InputText 
+                                    id={field.name} 
+                                    {...field} 
+                                    maxLength={6}
+                                    className={classNames('w-full p-5 text-center text-3xl font-black tracking-[0.5em] rounded-xl border-2', { 'p-invalid': fieldState.invalid })} 
+                                    placeholder="000000" 
+                                />
+                            )} />
+                            {getFormErrorMessage('otp_code')}
+                            <button 
+                                type="button" 
+                                onClick={() => setStep(1)} 
+                                className="text-sm text-green-600 font-bold mt-4 hover:underline"
+                            >
+                                <i className="pi pi-arrow-left mr-1"></i> Usar otro correo
+                            </button>
                         </div>
-                    </div>
-                </div>
-                {/* ------------------------------------------------ */}
-
-                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-                    {/* Campo: Email */}
-                    <div className="flex flex-col">
-                        <label className="font-semibold text-gray-700 mb-1">Correo Electrónico</label>
-                        <Controller name="email" control={control} rules={{ 
-                            required: 'El correo es obligatorio',
-                            pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i, message: 'Correo inválido' }
-                        }} render={({ field, fieldState }) => (
-                            <InputText id={field.name} {...field} className={classNames('w-full p-3', { 'p-invalid': fieldState.invalid })} placeholder="ej. donante@test.com" />
-                        )} />
-                        {getFormErrorMessage('email')}
-                    </div>
-
-                    {/* Campo: Password */}
-                    <div className="flex flex-col">
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="font-semibold text-gray-700">Contraseña</label>
-                            <a href="#" className="text-sm text-green-600 hover:underline">¿Olvidaste tu contraseña?</a>
-                        </div>
-                        <Controller name="password" control={control} rules={{ required: 'La contraseña es obligatoria' }} render={({ field, fieldState }) => (
-                            <Password 
-                                id={field.name} 
-                                {...field} 
-                                inputRef={field.ref} 
-                                toggleMask 
-                                feedback={false} 
-                                className={classNames('w-full', { 'p-invalid': fieldState.invalid })} 
-                                inputClassName="w-full p-3" 
-                                placeholder="••••••••"
-                            />
-                        )} />
-                        {getFormErrorMessage('password')}
-                    </div>
+                    )}
 
                     <Button 
                         type="submit" 
-                        label={isLoading ? "Verificando..." : "Ingresar"} 
-                        icon={isLoading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"} 
-                        className="p-button-success w-full mt-4 p-3 text-lg" 
+                        label={isLoading ? (step === 1 ? "Enviando..." : "Verificando...") : (step === 1 ? "Solicitar Código" : "Ingresar")} 
+                        icon={isLoading ? "pi pi-spin pi-spinner" : (step === 1 ? "pi pi-envelope" : "pi pi-check")} 
+                        className="p-button-success w-full mt-4 p-4 text-xl font-bold rounded-xl shadow-lg shadow-green-200" 
                         disabled={isLoading} 
                     />
                     

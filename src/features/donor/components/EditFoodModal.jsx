@@ -12,7 +12,7 @@ import { classNames } from 'primereact/utils';
 import { storageService } from '../../../services/storageService';
 import CameraCapture from '../../../components/common/CameraCapture';
 
-const PublishFoodModal = ({ visible, onHide, onPublish }) => {
+const EditFoodModal = ({ visible, onHide, onUpdate, lote }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [showCamera, setShowCamera] = useState(false);
@@ -37,29 +37,42 @@ const PublishFoodModal = ({ visible, onHide, onPublish }) => {
         }
     });
 
+    // Cargar datos cuando cambia el lote seleccionado
+    React.useEffect(() => {
+        if (lote) {
+            reset({
+                titulo: lote.titulo,
+                descripcion: lote.descripcion,
+                cantidad: lote.cantidad,
+                peso_kg: lote.peso_kg,
+                categoria: lote.categoria,
+                fecha_caducidad: lote.fecha_caducidad ? new Date(lote.fecha_caducidad) : null
+            });
+        }
+    }, [lote, reset]);
+
     const onSubmit = async (data) => {
         setIsSubmitting(true);
         try {
-            let imagen_url = null;
+            let imagen_url = lote?.imagen_url || null;
+            
+            // Si se seleccionó un nuevo archivo, subirlo
             if (selectedFile) {
                 const uploadRes = await storageService.uploadImage(selectedFile);
                 imagen_url = uploadRes.imagen_url;
             }
 
-            // Inyectamos coordenadas de Cali por defecto (esto debería ser dinámico en el futuro)
-            const finalData = {
+            const updatedData = {
                 ...data,
-                imagen_url,
-                latitud: 3.4215,
-                longitud: -76.5161
+                imagen_url
             };
 
-            await onPublish(finalData);
+            await onUpdate(lote.id, updatedData);
             reset();
             setSelectedFile(null);
             onHide();
         } catch (error) {
-            console.error("Error al publicar:", error);
+            console.error("Error al actualizar:", error);
         } finally {
             setIsSubmitting(false);
         }
@@ -72,12 +85,12 @@ const PublishFoodModal = ({ visible, onHide, onPublish }) => {
     // Personalización del encabezado del modal
     const modalHeader = (
         <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <i className="pi pi-megaphone text-green-600 text-xl"></i>
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <i className="pi pi-pencil text-blue-600 text-xl"></i>
             </div>
             <div>
-                <h2 className="text-xl font-bold text-slate-800">Publicar Alerta Flash</h2>
-                <p className="text-sm text-slate-500 font-normal">Sube un excedente y notifica a las fundaciones cercanas.</p>
+                <h2 className="text-xl font-bold text-slate-800">Editar Publicación</h2>
+                <p className="text-sm text-slate-500 font-normal">Actualiza la información de tu excedente.</p>
             </div>
         </div>
     );
@@ -99,20 +112,26 @@ const PublishFoodModal = ({ visible, onHide, onPublish }) => {
                 <div>
                     <label className="font-semibold text-slate-700 mb-2 block">Fotografía del Alimento</label>
                     <div className="flex flex-col gap-3">
-                        {selectedFile && (
-                            <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+                        {/* Vista previa de lo nuevo o lo actual */}
+                        {(selectedFile || lote?.imagen_url) && (
+                            <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 shadow-inner group">
                                 <img 
-                                    src={URL.createObjectURL(selectedFile)} 
+                                    src={selectedFile ? URL.createObjectURL(selectedFile) : lote.imagen_url} 
                                     alt="Vista previa" 
                                     className="w-full h-full object-cover"
                                 />
-                                <button 
-                                    type="button"
-                                    onClick={() => setSelectedFile(null)}
-                                    className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
-                                >
-                                    <i className="pi pi-times"></i>
-                                </button>
+                                {selectedFile && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setSelectedFile(null)}
+                                        className="absolute top-2 right-2 w-8 h-8 bg-slate-900/60 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-all"
+                                    >
+                                        <i className="pi pi-times"></i>
+                                    </button>
+                                )}
+                                <div className="absolute bottom-2 left-2 bg-slate-900/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">
+                                    {selectedFile ? 'Nueva imagen seleccionada' : 'Imagen actual'}
+                                </div>
                             </div>
                         )}
                         
@@ -122,7 +141,7 @@ const PublishFoodModal = ({ visible, onHide, onPublish }) => {
                                 name="fotografia" 
                                 accept="image/*" 
                                 maxFileSize={5000000} 
-                                chooseLabel={selectedFile ? "Cambiar Foto" : "Subir desde Galería"}
+                                chooseLabel={selectedFile ? "Cambiar de Galería" : "Subir de Galería"}
                                 onSelect={(e) => setSelectedFile(e.files[0])}
                                 className="flex-1"
                                 auto
@@ -227,11 +246,11 @@ const PublishFoodModal = ({ visible, onHide, onPublish }) => {
                 {/* Botones de acción del Modal */}
                 <div className="flex justify-end gap-3 mt-4 border-t border-slate-100 pt-6">
                     <Button type="button" label="Cancelar" icon="pi pi-times" onClick={onHide} className="p-button-text p-button-secondary text-slate-600 font-bold" disabled={isSubmitting} />
-                    <Button type="submit" label={isSubmitting ? "Publicando..." : "Lanzar Alerta Flash"} icon={isSubmitting ? "pi pi-spin pi-spinner" : "pi pi-send"} className="p-button-success shadow-lg px-6 font-bold" disabled={isSubmitting} />
+                    <Button type="submit" label={isSubmitting ? "Guardando..." : "Guardar Cambios"} icon={isSubmitting ? "pi pi-spin pi-spinner" : "pi pi-save"} className="p-button-primary shadow-lg px-6 font-bold" disabled={isSubmitting} />
                 </div>
             </form>
         </Dialog>
     );
 };
 
-export default PublishFoodModal;
+export default EditFoodModal;

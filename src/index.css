@@ -1,9 +1,21 @@
-@import "primeicons/primeicons.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Importación principal de Tailwind v4 */
+@import "tailwindcss";
 
-/* Restauramos SÓLO los íconos, ya que seguimos usando las clases "pi pi-..." */
+/* Temas de PrimeReact y estilos adicionales */
+/* [MIGRACION v11] PrimeReact v11 introducirá un nuevo sistema de temas ('Aura'/'Nora'). 
+   Las importaciones de recursos antiguos como 'lara-light-green' serán reemplazadas 
+   por el nuevo sistema de Design Tokens. */
+
+:root {
+  --eco-green-primary: #22c55e;
+  --eco-green-dark: #15803d;
+}
+
+/* Filtro para transformar azules del logo en verde EcoBocado */
+.eco-logo-filter {
+  filter: hue-rotate(650deg) saturate(0.9) brightness(1.1);
+  mix-blend-mode: multiply;
+}
 
 body {
   margin: 0;
