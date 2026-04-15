@@ -76,4 +76,4 @@ function App() {
   );
 }
 
-export default ProfileSettings;
+export default App;
