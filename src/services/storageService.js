@@ -8,13 +8,13 @@ export const storageService = {
      */
     uploadImage: async (file) => {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('image', file);
 
         // Usamos una petición manual aquí porque apiFetcher asume JSON por defecto
         // y necesitamos multipart/form-data sin establecer el Content-Type manualmente
         // para que el navegador ponga el boundary correcto.
         const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'}/lotes/upload-image`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'}/lotes/upload-image`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

@@ -7,21 +7,25 @@ import { DataView } from 'primereact/dataview';
 import { Tag } from 'primereact/tag';
 import { Link } from 'react-router-dom';
 import PublishFoodModal from './components/PublishFoodModal';
+import EditFoodModal from './components/EditFoodModal';
 import PageHeader from '../../components/layout/PageHeader';
 import { loteService } from '../../services/loteService';
 import { impactoService } from '../../services/impactoService';
 import { reservaService } from '../../services/reservaService';
 import { useLoading } from '../../contexts/LoadingContext';
 import { Toast } from 'primereact/toast';
+import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import QRScannerModal from './components/QRScannerModal';
 
 
 const DonorDashboard = () => {
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [lotesActivos, setLotesActivos] = useState([]);
     const [stats, setStats] = useState({ peso_rescatado_kg: 0, lotes_activos: 0, entregas_hoy: 0 });
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [selectedLote, setSelectedLote] = useState(null);
+    const [loteToEdit, setLoteToEdit] = useState(null);
     const { setIsLoading: setGlobalLoading } = useLoading();
     const toast = React.useRef(null);
 
@@ -120,6 +124,51 @@ const DonorDashboard = () => {
         }
     };
 
+    const handleEdit = (lote) => {
+        setLoteToEdit(lote);
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdate = async (id, updatedData) => {
+        setGlobalLoading(true);
+        try {
+            await loteService.update(id, updatedData);
+            await fetchData();
+            toast.current.show({ severity: 'success', summary: 'Actualizado', detail: 'Publicación actualizada correctamente' });
+        } catch (error) {
+            console.error("Error updating lote:", error);
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo actualizar la publicación' });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
+    const confirmDelete = (lote) => {
+        confirmDialog({
+            message: `¿Estás seguro de eliminar "${lote.titulo}"?`,
+            header: 'Confirmar Eliminación',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: 'Sí, eliminar',
+            rejectLabel: 'Cancelar',
+            acceptClassName: 'p-button-danger',
+            accept: () => handleDelete(lote.id),
+        });
+    };
+
+    const handleDelete = async (id) => {
+        setGlobalLoading(true);
+        try {
+            await loteService.delete(id);
+            await fetchData();
+            toast.current.show({ severity: 'success', summary: 'Eliminado', detail: 'Publicación eliminada correctamente' });
+        } catch (error) {
+            console.error("Error deleting lote:", error);
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar la publicación' });
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
     const formatTimeLeft = (dateString) => {
         const diff = new Date(dateString) - new Date();
         if (diff < 0) return 'Expirado';
@@ -169,8 +218,8 @@ const DonorDashboard = () => {
                         />
                     ) : lote.estado === 'ACTIVO' ? (
                         <div className="flex gap-1">
-                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text p-button-secondary" />
-                            <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" />
+                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text p-button-secondary" onClick={() => handleEdit(lote)} />
+                            <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" onClick={() => confirmDelete(lote)} />
                         </div>
                     ) : (
                         <Button icon="pi pi-eye" className="p-button-rounded p-button-text p-button-secondary" />
@@ -271,11 +320,20 @@ const DonorDashboard = () => {
                 onPublish={handlePublish}
             />
 
+            <EditFoodModal
+                visible={isEditModalOpen}
+                onHide={() => setIsEditModalOpen(false)}
+                onUpdate={handleUpdate}
+                lote={loteToEdit}
+            />
+
             <QRScannerModal 
                 visible={isScannerOpen}
                 onHide={() => setIsScannerOpen(false)}
                 onScanSuccess={handleScanSuccess}
             />
+
+            <ConfirmDialog />
         </div>
     );
 };
