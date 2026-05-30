@@ -61,7 +61,8 @@ const LoginPage = () => {
     const handleGoogleLogin = () => {
         setIsLoading(true);
         // Redirigir al backend para iniciar el flujo OAuth 2.0 de Google
-        window.location.href = 'http://localhost:3000/api/v1/auth/google';
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        window.location.href = `${apiUrl}/auth/google`;
     };
 
     return (
