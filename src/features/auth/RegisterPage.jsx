@@ -60,6 +60,13 @@ const RegisterPage = () => {
         }
     }, [setValue]);
 
+    const handleGoogleLogin = () => {
+        setIsLoading(true);
+        // Redirigir al backend para iniciar el flujo OAuth 2.0 de Google
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        window.location.href = `${apiUrl}/auth/google`;
+    };
+
     const onSubmit = async (data) => {
         setIsLoading(true);
         try {
@@ -128,108 +135,139 @@ const RegisterPage = () => {
                     <p className="text-gray-500 font-medium">
                         {isGoogleOAuth 
                             ? 'Selecciona tu rol y proporciona tus datos de contacto para finalizar.' 
-                            : 'Regístrate para empezar a rescatar alimentos hoy mismo.'}
+                            : 'Para empezar a rescatar alimentos hoy mismo, primero debes verificar tu identidad.'}
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-                    
-                    {/* Campo: ROL */}
-                    <div className="flex flex-col">
-                        <label className="font-semibold text-gray-700 mb-2">¿Cómo participarás?</label>
-                        <Controller name="rol" control={control} rules={{ required: 'Selecciona un rol' }} render={({ field }) => (
-                            <Dropdown 
-                                id={field.name} value={field.value} onChange={(e) => field.onChange(e.value)} 
-                                options={opcionesRol} 
-                                className={classNames('w-full p-2 rounded-xl border-slate-200 shadow-sm', { 'p-invalid': errors.rol })} 
-                            />
-                        )} />
-                        {getFormErrorMessage('rol')}
-                    </div>
-
-                    {/* Campo: Nombre de Perfil */}
-                    <div className="flex flex-col">
-                        <label className="font-semibold text-gray-700 mb-2">
-                            {rolSeleccionado === 'DONOR' ? 'Nombre de tu Establecimiento' : 'Nombre de la Fundación / ONG'}
-                        </label>
-                        <Controller name="nombre" control={control} rules={{ required: 'Este campo es obligatorio' }} render={({ field, fieldState }) => (
-                            <InputText id={field.name} {...field} className={classNames('w-full p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. Panadería Central" />
-                        )} />
-                        {getFormErrorMessage('nombre')}
-                    </div>
-
-                    {/* Campo: Email */}
-                    <div className="flex flex-col">
-                        <label className="font-semibold text-gray-700 mb-2">Correo Electrónico</label>
-                        <Controller name="email" control={control} rules={{ 
-                            required: 'El correo es obligatorio',
-                            pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i, message: 'Correo inválido' }
-                        }} render={({ field, fieldState }) => (
-                            <InputText 
-                                id={field.name} 
-                                {...field} 
-                                disabled={isGoogleOAuth}
-                                className={classNames('w-full p-3 rounded-xl shadow-sm bg-gray-50 read-only:text-gray-400', { 'p-invalid': fieldState.invalid })} 
-                            />
-                        )} />
-                        {getFormErrorMessage('email')}
-                    </div>
-
-                    {/* Campo: Password (sólo si NO es Google OAuth) */}
-                    {!isGoogleOAuth && (
+                {isGoogleOAuth ? (
+                    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+                        
+                        {/* Campo: ROL */}
                         <div className="flex flex-col">
-                            <label className="font-semibold text-gray-700 mb-2 text-sm italic">Contraseña (Mínimo 6 caracteres)</label>
-                            <Controller name="password" control={control} rules={{ required: 'La contraseña es obligatoria', minLength: { value: 6, message: 'Mínimo 6 caracteres' } }} render={({ field, fieldState }) => (
-                                <Password id={field.name} {...field} inputRef={field.ref} toggleMask feedback={false} className={classNames('w-full', { 'p-invalid': fieldState.invalid })} inputClassName="w-full p-3 rounded-xl shadow-sm" />
-                            )} />
-                            {getFormErrorMessage('password')}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col">
-                            <label className="font-semibold text-gray-700 mb-2">Dirección</label>
-                            <div className="flex gap-2">
-                                <Controller name="direccion" control={control} rules={{ required: 'Obligatorio' }} render={({ field, fieldState }) => (
-                                    <InputText id={field.name} {...field} className={classNames('flex-1 p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. Calle 10 # 5-20" />
-                                )} />
-                                <Button 
-                                    type="button"
-                                    icon="pi pi-map-marker" 
-                                    onClick={() => setShowMapModal(true)} 
-                                    className="p-button-outlined p-button-success rounded-xl px-4" 
-                                    tooltip="Ubicar en mapa"
-                                    tooltipOptions={{ position: 'top' }}
+                            <label className="font-semibold text-gray-700 mb-2">¿Cómo participarás?</label>
+                            <Controller name="rol" control={control} rules={{ required: 'Selecciona un rol' }} render={({ field }) => (
+                                <Dropdown 
+                                    id={field.name} value={field.value} onChange={(e) => field.onChange(e.value)} 
+                                    options={opcionesRol} 
+                                    className={classNames('w-full p-2 rounded-xl border-slate-200 shadow-sm', { 'p-invalid': errors.rol })} 
                                 />
-                            </div>
-                            {getFormErrorMessage('direccion')}
-                            {coordinates.lat && (
-                                <span className="text-[10px] text-green-600 font-bold mt-1 flex items-center gap-1">
-                                    <i className="pi pi-check-circle"></i> Ubicación guardada
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex flex-col">
-                            <label className="font-semibold text-gray-700 mb-2">Teléfono</label>
-                            <Controller name="telefono" control={control} rules={{ required: 'Obligatorio' }} render={({ field, fieldState }) => (
-                                <InputText id={field.name} {...field} className={classNames('w-full p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. 3123456789" />
                             )} />
-                            {getFormErrorMessage('telefono')}
+                            {getFormErrorMessage('rol')}
                         </div>
-                    </div>
 
-                    <Button 
-                        type="submit" 
-                        label={isLoading ? "Registrando..." : (isGoogleOAuth ? "Completar Registro" : "Crear Cuenta")} 
-                        icon={isLoading ? "pi pi-spin pi-spinner" : (isGoogleOAuth ? "pi pi-check-circle" : "pi pi-user-plus")} 
-                        className="p-button-success w-full mt-6 p-4 text-xl font-bold rounded-xl shadow-lg shadow-green-200 cursor-pointer" 
-                        disabled={isLoading} 
-                    />
-                    
-                    <p className="text-center text-gray-600 mt-6 font-medium">
-                        ¿Ya tienes cuenta? <Link to="/login" className="text-emerald-600 font-bold hover:underline">Inicia Sesión</Link>
-                    </p>
-                </form>
+                        {/* Campo: Nombre de Perfil */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold text-gray-700 mb-2">
+                                {rolSeleccionado === 'DONOR' ? 'Nombre de tu Establecimiento' : 'Nombre de la Fundación / ONG'}
+                            </label>
+                            <Controller name="nombre" control={control} rules={{ required: 'Este campo es obligatorio' }} render={({ field, fieldState }) => (
+                                <InputText id={field.name} {...field} className={classNames('w-full p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. Panadería Central" />
+                            )} />
+                            {getFormErrorMessage('nombre')}
+                        </div>
+
+                        {/* Campo: Email */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold text-gray-700 mb-2">Correo Electrónico</label>
+                            <Controller name="email" control={control} render={({ field }) => (
+                                <InputText 
+                                    id={field.name} 
+                                    {...field} 
+                                    disabled={true}
+                                    readOnly={true}
+                                    className="w-full p-3 rounded-xl shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed" 
+                                />
+                            )} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                                <label className="font-semibold text-gray-700 mb-2">Dirección</label>
+                                <div className="flex gap-2">
+                                    <Controller name="direccion" control={control} rules={{ required: 'Obligatorio' }} render={({ field, fieldState }) => (
+                                        <InputText id={field.name} {...field} className={classNames('flex-1 p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. Calle 10 # 5-20" />
+                                    )} />
+                                    <Button 
+                                        type="button"
+                                        icon="pi pi-map-marker" 
+                                        onClick={() => setShowMapModal(true)} 
+                                        className="p-button-outlined p-button-success rounded-xl px-4" 
+                                        tooltip="Ubicar en mapa"
+                                        tooltipOptions={{ position: 'top' }}
+                                    />
+                                </div>
+                                {getFormErrorMessage('direccion')}
+                                {coordinates.lat && (
+                                    <span className="text-[10px] text-green-600 font-bold mt-1 flex items-center gap-1">
+                                        <i className="pi pi-check-circle"></i> Ubicación guardada
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex flex-col">
+                                <label className="font-semibold text-gray-700 mb-2">Teléfono</label>
+                                <Controller name="telefono" control={control} rules={{ required: 'Obligatorio' }} render={({ field, fieldState }) => (
+                                    <InputText id={field.name} {...field} className={classNames('w-full p-3 rounded-xl shadow-sm', { 'p-invalid': fieldState.invalid })} placeholder="Ej. 3123456789" />
+                                )} />
+                                {getFormErrorMessage('telefono')}
+                            </div>
+                        </div>
+
+                        <Button 
+                            type="submit" 
+                            label={isLoading ? "Registrando..." : "Completar Registro"} 
+                            icon={isLoading ? "pi pi-spin pi-spinner" : "pi pi-check-circle"} 
+                            className="p-button-success w-full mt-6 p-4 text-xl font-bold rounded-xl shadow-lg shadow-green-200 cursor-pointer" 
+                            disabled={isLoading} 
+                        />
+                    </form>
+                ) : (
+                    <div className="flex flex-col gap-6 w-full">
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-emerald-600 font-bold text-lg animate-pulse">
+                                    Conectando con Google...
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-gray-500 mb-4 text-center lg:text-left leading-relaxed">
+                                    Para garantizar la seguridad de nuestra red de rescate de alimentos, es necesario verificar tu identidad con Google antes de rellenar el formulario de registro.
+                                </p>
+                                
+                                <motion.button 
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={handleGoogleLogin}
+                                    className="w-full flex items-center justify-center gap-4 bg-white border border-gray-300 hover:border-emerald-500 hover:bg-emerald-50/10 text-gray-700 hover:text-emerald-950 font-semibold py-4 px-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                                >
+                                    <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 48 48">
+                                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                    </svg>
+                                    <span className="text-lg">Registrarse con Google</span>
+                                </motion.button>
+                                
+                                <div className="relative my-4">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-gray-200"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm uppercase">
+                                        <span className="bg-white px-4 text-gray-400 font-semibold tracking-wider text-center">
+                                            Registro Seguro
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        
+                        <p className="text-center text-gray-600 mt-2 font-medium">
+                            ¿Ya tienes cuenta? <Link to="/login" className="text-emerald-600 font-bold hover:underline">Inicia Sesión</Link>
+                        </p>
+                    </div>
+                )}
             </motion.div>
 
             {/* Panel Derecho: Imagen Decorativa */}
