@@ -57,6 +57,22 @@ El sistema expone la API bajo el prefijo `api/v1` y se divide en los siguientes 
 6. **Módulo de Estado (`StatusModule`)**
    - **Responsabilidad**: Health checks y monitoreo básico de disponibilidad de la API.
 
+### 2.4 Consumo de Bases de Datos y Connection Pools
+
+El backend de EcoBocado maneja un ecosistema de bases de datos híbrido que impone retos particulares en la gestión de conexiones. Ambas bases de datos se inicializan de manera asíncrona a través del `ConfigModule` en el `app.module.ts`.
+
+#### PostgreSQL (Relacional)
+- **Gestión del Pool de Conexiones**: A través de `TypeOrmModule.forRootAsync`, TypeORM emplea el driver nativo `pg`, el cual implementa internamente un mecanismo robusto de *Connection Pooling*. Por defecto, el tamaño máximo del pool (max connections) en aplicaciones Node.js (con TypeORM) suele ser de 10 conexiones concurrentes, lo cual optimiza la memoria y evita la saturación del servidor PostgreSQL. Para escenarios de alta concurrencia, la escalabilidad vertical del pool se maneja inyectando la propiedad `extra: { max: <nuevo_limite> }` en las opciones de configuración.
+- **Consumo y Transaccionalidad**:
+  - **Patrón Repository**: Los datos se consumen inyectando repositorios nativos de TypeORM mediante el decorador `@InjectRepository(NombreEntidad)`. Esto asegura abstracción total sobre las consultas SQL.
+  - **ACID y Concurrencia**: Las operaciones críticas (como el *Módulo de Reservas*) pueden aprovechar transacciones del `QueryRunner` de TypeORM o bloqueos a nivel de fila (*Pessimistic/Optimistic Locking*) para asegurar la consistencia y evitar que un mismo lote sea reclamado por dos receptores a la vez.
+
+#### MongoDB (No Relacional)
+- **Gestión del Pool de Conexiones**: Configurado mediante `MongooseModule.forRootAsync`. El driver subyacente de MongoDB de Node.js (vía Mongoose 6+) maneja automáticamente la lógica de reconexión y mantenimiento del pool. Por defecto, su *Connection Pool* tiene un límite mucho más alto (`maxPoolSize: 100`), siendo ideal para consultas masivas concurrentes y operaciones rápidas de escritura (como métricas del *Módulo de Impacto* o logs).
+- **Consumo**:
+  - Los datos se consumen declarando esquemas de Mongoose y utilizando la inyección de dependencias `@InjectModel(NombreEsquema.name)`.
+  - Esta base de datos se orienta a documentos flexibles y autocontenidos, donde se prioriza la velocidad de lectura/escritura y no se requiere de transaccionalidad estricta.
+
 ---
 
 ## 3. Frontend (React + Vite)
