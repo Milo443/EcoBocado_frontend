@@ -73,6 +73,18 @@ El backend de EcoBocado maneja un ecosistema de bases de datos híbrido que impo
   - Los datos se consumen declarando esquemas de Mongoose y utilizando la inyección de dependencias `@InjectModel(NombreEsquema.name)`.
   - Esta base de datos se orienta a documentos flexibles y autocontenidos, donde se prioriza la velocidad de lectura/escritura y no se requiere de transaccionalidad estricta.
 
+#### 2.4.1 ¿Qué se guarda en cada Base de Datos?
+Para aprovechar las ventajas arquitectónicas de cada paradigma, la persistencia de datos se divide explícitamente de la siguiente forma:
+
+- **En PostgreSQL (Datos Transaccionales y de Identidad)**:
+  - **Usuarios (`UserEntity`)**: Credenciales (encriptadas con bcrypt), correos electrónicos, roles (Donante/Receptor) y metadata del perfil. Requiere alta integridad y estructura rígida para garantizar seguridad.
+  - **Reservas (`ReservaEntity`)**: El registro inmutable de qué usuario reservó qué lote y en qué momento. Al involucrar a múltiples receptores compitiendo por un mismo recurso (comida), es imperativo usar el motor relacional para prevenir condiciones de carrera mediante *bloqueos* y asegurar el cumplimiento *ACID*.
+  - **Sesiones**: Manejo de validaciones estrictas y control de acceso estructurado.
+
+- **En MongoDB (Datos Flexibles, Evolutivos y Geofísicos)**:
+  - **Lotes (`LoteSchema`)**: Toda la información descriptiva de la donación (título, descripción, URLs de las imágenes almacenadas en S3, estado actual, y coordenadas de geolocalización para el mapa de Leaflet). Al ser documentos que pueden tener atributos muy dinámicos dependiendo del tipo de alimento, un esquema NoSQL es ideal.
+  - **Impacto y Métricas (`ImpactoSchema` / Logs)**: Cálculos de emisiones de CO2 ahorradas, kilogramos de comida rescatada e historial de logros del sistema. Estos datos crecen exponencialmente y benefician de la alta velocidad de escritura/lectura y el aggregation pipeline de Mongo, priorizando la disponibilidad sobre la integridad referencial estricta.
+
 ---
 
 ## 3. Frontend (React + Vite)
