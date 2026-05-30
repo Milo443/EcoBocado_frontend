@@ -1,44 +1,114 @@
-# EcoBocado Frontend
+# Documentación Técnica - Proyecto EcoBocado
 
-Plataforma colaborativa para la reducción del desperdicio de alimentos y el apoyo a comunidades vulnerables.
+Esta documentación proporciona una visión exhaustiva y técnica de la arquitectura, dominios, servicios y tecnologías empleadas en el proyecto **EcoBocado**, tanto para el frontend como para el backend.
 
-## 🔗 Demo en Vivo
-Puedes ver la demo interactiva aquí: [https://milo443.github.io/EcoBocado_frontend/](https://milo443.github.io/EcoBocado_frontend/)
+---
 
-## ⚠️ Estado del Proyecto: Backend en Construcción
+## 1. Arquitectura General del Sistema
 
-> [!IMPORTANT]
-> Actualmente, gran parte de la funcionalidad y los datos que se muestran en la interfaz son **placeholders** (marcadores de posición) o datos estáticos (mock data). El **backend del proyecto se encuentra en fase de desarrollo**, por lo que la interacción con servidores reales es limitada o inexistente en esta etapa.
+El ecosistema de EcoBocado está basado en una arquitectura **Cliente-Servidor** estructurada para ser escalable, segura y mantenible.
 
-## 🏗️ Estructura del Proyecto
+- **Frontend**: Single Page Application (SPA) altamente interactiva y responsiva.
+- **Backend**: API RESTful robusta y orientada a microservicios simulados a través de módulos altamente desacoplados.
+- **Bases de Datos (Híbrida/Políglota)**:
+  - **PostgreSQL**: Base de datos relacional para gestionar entidades transaccionales y con relaciones complejas.
+  - **MongoDB**: Base de datos NoSQL para almacenamiento de documentos flexibles.
 
-El proyecto está organizado siguiendo una arquitectura modular basada en características (features), lo que facilita la escalabilidad y el mantenimiento:
+---
 
-### `/src`
-- **`/assets`**: Recursos estáticos como imágenes, iconos y estilos globales.
-- **`/components`**: Componentes de interfaz de usuario reutilizables (Botones, Inputs, Layouts, etc.).
-- **`/config`**: Archivos de configuración de la aplicación (variables de entorno, constantes).
-- **`/contexts`**: Manejo del estado global mediante React Context (Autenticación, preferencias, etc.).
-- **`/features`**: Contiene la lógica principal dividida por módulos funcionales:
-    - **`auth`**: Gestión de inicio de sesión, registro y recuperación de cuenta.
-    - **`donor`**: Interfaz y lógica para donantes (publicaciones, dashboard de impacto).
-    - **`receptor`**: Interfaz y lógica para receptores (exploración de alimentos, solicitudes).
-    - **`landing`**: Página de inicio informativa y secciones públicas.
+## 2. Backend (NestJS)
 
-## 🚀 Tecnologías Principales
+El backend de EcoBocado está construido sobre **NestJS**, un framework progresivo de Node.js que impone y facilita una arquitectura modular sólida, fuertemente tipada con **TypeScript**.
 
-- **React** + **Vite**: Para un desarrollo rápido y eficiente.
-- **Tailwind CSS**: Para un diseño moderno y responsive.
-- **Lucide React**: Biblioteca de iconos.
+### 2.1 Tecnologías Principales
+- **Framework Core**: NestJS (v11)
+- **Lenguaje**: TypeScript
+- **ORM / ODM**: TypeORM (para PostgreSQL) y Mongoose (para MongoDB).
+- **Autenticación**: Passport.js (Estrategias: JWT y Google OAuth2.0), Bcrypt.
+- **Validación y DTOs**: `class-validator` y `class-transformer`.
+- **Almacenamiento (Cloud)**: AWS SDK S3 (para manejo de imágenes/archivos).
+- **Documentación API**: Swagger UI / OpenAPI (accesible en `/api`).
 
-## 🛠️ Instalación y Desarrollo
+### 2.2 Patrones de Arquitectura
+El backend sigue el patrón de **Arquitectura Modular basada en Dominios**. Cada módulo contiene sus propios Controladores, Servicios y Entidades/Esquemas, fomentando el principio de Responsabilidad Única (SRP) y alta cohesión. Además, se aplican filtros de excepción globales (ej. `MongoExceptionFilter`) y *pipes* de validación global.
 
-1. Instala las dependencias:
-   ```bash
-   npm install
-   ```
+### 2.3 Dominios y Servicios
 
-2. Ejecuta el servidor de desarrollo:
-   ```bash
-   npm run dev
-   ```
+El sistema expone la API bajo el prefijo `api/v1` y se divide en los siguientes módulos principales:
+
+1. **Módulo de Autenticación (`AuthModule`)**
+   - **Responsabilidad**: Gestión del ciclo de vida de sesiones, inicio de sesión seguro, emisión y validación de tokens JWT.
+   - **Integraciones**: Inicio de sesión mediante OAuth2.0 con Google (`google.strategy.ts`).
+
+2. **Módulo de Usuarios (`UsuariosModule`)**
+   - **Responsabilidad**: Administración de los diferentes perfiles del sistema (Donantes, Receptores).
+   - **Persistencia**: Manejo de entidades de usuario con contraseñas encriptadas (bcrypt).
+
+3. **Módulo de Lotes (`LotesModule`)**
+   - **Responsabilidad**: Gestión del ciclo de vida de los "Lotes" de alimentos (creación, publicación, actualización de estado).
+   - **Tecnología**: Probablemente haga uso intenso de almacenamiento en S3 para las imágenes de los productos.
+
+4. **Módulo de Reservas (`ReservasModule`)**
+   - **Responsabilidad**: Control de la concurrencia y flujo de asignación de Lotes a Receptores. Manejo de estados de la reserva (Pendiente, Confirmada, Cancelada, Completada).
+
+5. **Módulo de Impacto (`ImpactoModule`)**
+   - **Responsabilidad**: Cálculo y persistencia de las métricas ambientales (e.g., CO2 ahorrado, kilogramos de comida rescatada).
+
+6. **Módulo de Estado (`StatusModule`)**
+   - **Responsabilidad**: Health checks y monitoreo básico de disponibilidad de la API.
+
+---
+
+## 3. Frontend (React + Vite)
+
+El frontend de EcoBocado es una aplicación React moderna, enfocada en la velocidad, experiencia de usuario fluida (animaciones y transiciones) y un diseño de código escalable.
+
+### 3.1 Tecnologías Principales
+- **Core**: React v19, React DOM v19.
+- **Bundler y Herramientas**: Vite (extremadamente rápido para HMR y builds optimizados).
+- **Estilos e Interfaz**:
+  - TailwindCSS v4 (para estilos de utilidad hiper-optimizados).
+  - PrimeReact & PrimeIcons (para componentes UI complejos y accesibles).
+- **Enrutamiento**: React Router DOM v7.
+- **Animaciones**: GSAP (GreenSock) y Framer Motion.
+- **Mapas y Geolocalización**: Leaflet y React-Leaflet.
+- **Utilidades adicionales**: `html5-qrcode` y `react-qr-code` para manejo de códigos QR.
+
+### 3.2 Arquitectura y Estructura de Directorios (Feature-Driven Design)
+La arquitectura del frontend rompe con el clásico patrón MVC monolítico en el cliente, adoptando un enfoque de **Feature Slices**. Todo el código relacionado con una característica particular convive en el mismo lugar, mejorando la mantenibilidad a gran escala.
+
+Estructura de la carpeta `src`:
+
+- **`/features`**: Agrupa la UI y lógica específica por dominios de la aplicación.
+  - `auth/`: Vistas y componentes relacionados con login y registro.
+  - `donor/`: Interfaces para el perfil del donante (publicación de lotes, settings, dashboard).
+  - `receptor/`: Interfaces para el perfil del receptor (búsqueda de lotes, mapa de ubicación, reservas).
+  - `landing/`: Componentes para la página de inicio o presentación pública.
+  - `common/`: Vistas o layouts transversales.
+
+- **`/services`**: Capa de abstracción de red (API Gateway interno). Aquí se encuentran las funciones que consumen el backend de NestJS:
+  - `api.js`: Configuración base de Axios o Fetch.
+  - `authService.js`, `impactoService.js`, `loteService.js`, `reservaService.js`, `storageService.js`.
+
+- **`/components`**: Componentes visuales genéricos, tontos (dumb components) y reutilizables en cualquier feature (ej. Botones, Tarjetas genéricas, Modales).
+
+- **`/contexts`**: Gestión del estado global mediante la React Context API (ej. `AuthContext`, `ThemeContext`).
+
+- **`/config`**: Variables de configuración globales del frontend.
+
+### 3.3 Patrones Clave en el Frontend
+- **Desacoplamiento de Servicios**: La UI no hace fetch directamente, delega esta tarea a la capa de `services`, permitiendo simular (mocking) y manejar errores centralizadamente.
+- **Rutas Protegidas**: Uso de React Router para proteger el acceso a las features de `donor` y `receptor` verificando el estado del token JWT o la sesión de Google.
+- **Micro-animaciones**: Uso intensivo de `framer-motion` y `gsap` para dar retroalimentación visual al usuario, lo que aumenta la percepción de calidad (premium UI).
+
+---
+
+## 4. Resumen del Flujo de Datos
+
+1. **Autenticación**: El usuario se autentica en el Frontend (vía formulario o Google Auth). El Frontend (`authService`) llama al Backend (`AuthModule`). El Backend devuelve un JWT.
+2. **Publicación de Lote**: El *Donante* usa su *Feature* en el frontend para subir un lote (foto, descripción, ubicación). El Frontend sube la imagen a S3 vía el backend (`LotesModule`) y guarda los metadatos en Postgres/MongoDB.
+3. **Reserva**: El *Receptor* visualiza los lotes en el mapa interactivo (Leaflet), y emite una solicitud. El Frontend llama al `reservaService`, el cual contacta al `ReservasModule` del backend, generando un registro transaccional para evitar condiciones de carrera.
+4. **Impacto**: Una vez completada la donación (posiblemente confirmada vía un escaneo QR), el backend actualiza el `ImpactoModule`, y el frontend refleja los logros en el dashboard (animados con GSAP/Chart.js).
+
+---
+*Documentación generada automáticamente basada en la inspección de los repositorios frontend y backend de EcoBocado.*
