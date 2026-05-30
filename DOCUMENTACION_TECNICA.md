@@ -85,6 +85,13 @@ Para aprovechar las ventajas arquitectónicas de cada paradigma, la persistencia
   - **Lotes (`LoteSchema`)**: Toda la información descriptiva de la donación (título, descripción, URLs de las imágenes almacenadas en S3, estado actual, y coordenadas de geolocalización para el mapa de Leaflet). Al ser documentos que pueden tener atributos muy dinámicos dependiendo del tipo de alimento, un esquema NoSQL es ideal.
   - **Impacto y Métricas (`ImpactoSchema` / Logs)**: Cálculos de emisiones de CO2 ahorradas, kilogramos de comida rescatada e historial de logros del sistema. Estos datos crecen exponencialmente y benefician de la alta velocidad de escritura/lectura y el aggregation pipeline de Mongo, priorizando la disponibilidad sobre la integridad referencial estricta.
 
+#### 2.4.2 Intención Arquitectónica (Persistencia Políglota)
+La decisión de utilizar dos motores de base de datos simultáneamente responde al patrón de arquitectura conocido como **Polyglot Persistence** (Persistencia Políglota). Este principio dicta que se debe utilizar el almacén de datos que mejor resuelva un dominio específico, en lugar de forzar a una única base de datos genérica a manejar todo.
+
+La intención detrás de esta implementación fue:
+1. **Consistencia Estricta donde es Crítico**: El proceso de reserva de alimentos es una "zona de alta concurrencia". Si dos o más receptores intentan reservar el último lote de comida en el mismo milisegundo, **PostgreSQL** interviene con su naturaleza transaccional y bloqueos a nivel de fila (Row-level locking) para garantizar el cumplimiento ACID, evitando que la aplicación asigne el mismo plato de comida a dos personas distintas.
+2. **Flexibilidad Evolutiva donde hay Variabilidad**: Un "Lote de Comida" es altamente heterogéneo (algunos tienen información de alérgenos, otros fecha estricta de caducidad, coordenadas GPS variadas y distintos números de imágenes). Obligar a una tabla SQL a llenarse de columnas nulas para datos variables es un antipatrón. Al delegar los lotes y el flujo masivo de las métricas de impacto a **MongoDB**, el ecosistema gana agilidad para evolucionar la estructura de los datos sin migraciones complejas, asegurando altísimo rendimiento en consultas de lectura para los mapas de la interfaz.
+
 ---
 
 ## 3. Frontend (React + Vite)
