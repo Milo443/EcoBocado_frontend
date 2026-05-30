@@ -1,35 +1,104 @@
-import React, { useState, useRef, useEffect } from 'react';
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from 'primereact/button';
-import { Card } from 'primereact/card';
 import { DataView } from 'primereact/dataview';
 import { Toast } from 'primereact/toast';
-import { Link } from 'react-router-dom';
-import mapaCali from '../../assets/mapa-cali.png';
-import ReceptorSidebar from './components/ReceptorSidebar';
 import { loteService } from '../../services/loteService';
 import { useLoading } from '../../contexts/LoadingContext';
-
 import { reservaService } from '../../services/reservaService';
+import { useAuth } from '../../contexts/AuthContext';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+
+// Iconos Leaflet personalizados
+const userMarkerIcon = L.divIcon({
+    html: `
+        <div class="relative flex flex-col items-center justify-center">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl border-2 border-white animate-pulse">
+                <i class="pi pi-user text-xs"></i>
+            </div>
+            <div class="w-2.5 h-2.5 bg-blue-600 rotate-45 transform -translate-y-1 -mt-0.5 shadow-lg border-r border-b border-white/20"></div>
+        </div>
+    `,
+    className: 'custom-user-icon',
+    iconSize: [32, 38],
+    iconAnchor: [16, 38]
+});
+
+const createLoteMarkerIcon = (isSelected, isUrgent) => {
+    const color = isSelected ? 'bg-green-700 ring-4 ring-green-300' : (isUrgent ? 'bg-red-500 animate-pulse' : 'bg-green-600');
+    const scale = isSelected ? 'scale-110' : 'scale-100';
+    return L.divIcon({
+        html: `
+            <div class="relative flex flex-col items-center justify-center transform ${scale} transition-transform duration-300">
+                <div class="w-9 h-9 rounded-full ${color} text-white flex items-center justify-center shadow-xl border-2 border-white">
+                    <i class="pi pi-shopping-bag text-sm"></i>
+                </div>
+                <div class="w-3 h-3 ${color} rotate-45 transform -translate-y-1.5 -mt-1 shadow-lg border-r border-b border-white/20"></div>
+            </div>
+        `,
+        className: 'custom-lote-icon',
+        iconSize: [36, 44],
+        iconAnchor: [18, 44]
+    });
+};
+
+// Fórmula Haversine para distancia exacta
+const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radio en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return (R * c).toFixed(1);
+};
+
+// Controlador de mapa para centrado y vuelo animado
+const MapController = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (center) {
+            map.flyTo(center, 14, {
+                animate: true,
+                duration: 1.2
+            });
+        }
+    }, [center, map]);
+    return null;
+};
 
 const ReceptorExplorer = () => {
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
     const [lotesDisponibles, setLotesDisponibles] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const toast = useRef(null);
     const { setIsLoading: setGlobalLoading } = useLoading();
+    const { user } = useAuth();
+
+    const userLocation = useMemo(() => {
+        if (user && user.latitud && user.longitud) {
+            return [user.latitud, user.longitud];
+        }
+        return null;
+    }, [user]);
 
     const fetchLotes = async () => {
         try {
             const data = await loteService.getActivos();
-            const mappingLotes = data.map((lote) => ({
-                ...lote,
-                x: lote.x || Math.floor(Math.random() * 80) + 10,
-                y: lote.y || Math.floor(Math.random() * 80) + 10,
-                distancia: lote.distancia || `${(Math.random() * 5).toFixed(1)} km`,
-                urgente: new Date(lote.fecha_caducidad) - new Date() < 3600000 
-            }));
+            const mappingLotes = data.map((lote) => {
+                let distLabel = 'N/A';
+                if (userLocation && lote.ubicacion?.coordinates) {
+                    const coords = lote.ubicacion.coordinates;
+                    distLabel = `${getDistance(userLocation[0], userLocation[1], coords[1], coords[0])} km`;
+                }
+                return {
+                    ...lote,
+                    distancia: distLabel,
+                    urgente: new Date(lote.fecha_caducidad) - new Date() < 3600000 
+                };
+            });
             setLotesDisponibles(mappingLotes);
         } catch (error) {
             console.error("Error fetching lotes:", error);
@@ -39,7 +108,7 @@ const ReceptorExplorer = () => {
     useEffect(() => {
         setGlobalLoading(true);
         fetchLotes().finally(() => setGlobalLoading(false));
-    }, []);
+    }, [userLocation]);
 
     const handleReservar = async (lote, e) => {
         e.stopPropagation();
@@ -71,6 +140,25 @@ const ReceptorExplorer = () => {
         return mins > 60 ? `En ${Math.floor(mins/60)}h ${mins%60}m` : `En ${mins}m`;
     };
 
+    const filteredLotes = useMemo(() => {
+        if (!searchTerm.trim()) return lotesDisponibles;
+        return lotesDisponibles.filter(l => 
+            l.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (l.donante_nombre && l.donante_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (l.categoria && l.categoria.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [searchTerm, lotesDisponibles]);
+
+    const selectedLoteCoords = useMemo(() => {
+        if (!loteSeleccionado) return null;
+        const selected = lotesDisponibles.find(l => l.id === loteSeleccionado);
+        const coords = selected?.ubicacion?.coordinates;
+        if (coords && coords.length >= 2) {
+            return [coords[1], coords[0]];
+        }
+        return null;
+    }, [loteSeleccionado, lotesDisponibles]);
+
     const alertTemplate = (lote) => (
         <div 
             onClick={() => setLoteSeleccionado(lote.id)}
@@ -80,7 +168,7 @@ const ReceptorExplorer = () => {
                 <div className={`text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 ${lote.urgente ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
                     <i className="pi pi-clock text-[10px]"></i> {formatTimeLeft(lote.fecha_caducidad)}
                 </div>
-                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
+                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100 font-sans">
                     {lote.distancia}
                 </span>
             </div>
@@ -111,7 +199,7 @@ const ReceptorExplorer = () => {
                     icon="pi pi-check" 
                     size="small" 
                     onClick={(e) => handleReservar(lote, e)}
-                    className="p-button-success p-button-sm rounded-xl px-3 py-1.5 font-bold" 
+                    className="p-button-success p-button-sm rounded-xl px-3 py-1.5 font-bold cursor-pointer" 
                 />
             </div>
         </div>
@@ -121,46 +209,68 @@ const ReceptorExplorer = () => {
         <div className="h-full bg-slate-50 font-sans selection:bg-green-200 overflow-hidden relative">
             <Toast ref={toast} position="top-right" />
 
-            {/* ÁREA PRINCIPAL: MAPA + PANEL DE ALERTAS */}
             <main className="flex flex-col md:flex-row relative h-full">
 
-                {/* FONDO DEL MAPA (Ocupa todo el espacio) */}
-                <div className="absolute inset-0 z-0 bg-slate-200">
-                    <img
-                        src={mapaCali}
-                        alt="Mapa de la ciudad"
-                        className="w-full h-full object-cover opacity-60 mix-blend-multiply"
-                    />
+                {/* MAPA REAL LEAFLET */}
+                <div className="absolute inset-0 z-0 bg-slate-200 h-full w-full">
+                    <MapContainer 
+                        center={userLocation || [3.4516, -76.5320]} 
+                        zoom={13} 
+                        scrollWheelZoom={true} 
+                        style={{ height: '100%', width: '100%' }}
+                    >
+                        <TileLayer
+                            attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                        />
+                        <MapController center={selectedLoteCoords || userLocation} />
+                        
+                        {/* Marcador del Receptor */}
+                        {userLocation && (
+                            <Marker position={userLocation} icon={userMarkerIcon}>
+                                <Popup>
+                                    <div className="font-sans text-xs font-bold text-slate-800">
+                                        Tu Ubicación
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        )}
 
-                    {/* Marcadores Simulados del Mapa */}
-                    {lotesDisponibles.map((lote) => (
-                        <motion.div
-                            key={`pin-${lote.id}`}
-                            style={{ top: `${lote.y}%`, left: `${lote.x}%` }}
-                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer group`}
-                            initial={{ y: -20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            whileHover={{ scale: 1.1 }}
-                            onClick={() => setLoteSeleccionado(lote.id)}
-                        >
-                            {lote.urgente && (
-                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                </span>
-                            )}
-                            <div className={`w-10 h-10 ${loteSeleccionado === lote.id ? 'bg-green-600' : (lote.urgente ? 'bg-red-500' : 'bg-slate-400')} rounded-full flex items-center justify-center text-white shadow-xl transition-colors border-2 border-white`}>
-                                <i className="pi pi-map-marker text-lg"></i>
-                            </div>
-                            {/* Punta del Pin */}
-                            <div className={`w-3 h-3 ${loteSeleccionado === lote.id ? 'bg-green-600' : (lote.urgente ? 'bg-red-500' : 'bg-slate-400')} rotate-45 transform -translate-y-1.5 mx-auto -mt-1 shadow-md transition-colors`}></div>
-
-                            {/* Tooltip Hover */}
-                            <div className="absolute top-12 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
-                                {lote.titulo} - {lote.distancia}
-                            </div>
-                        </motion.div>
-                    ))}
+                        {/* Marcadores de Lotes */}
+                        {filteredLotes.map((lote) => {
+                            const coords = lote.ubicacion?.coordinates;
+                            if (!coords || coords.length < 2) return null;
+                            const latLng = [coords[1], coords[0]];
+                            const isSelected = loteSeleccionado === lote.id;
+                            
+                            return (
+                                <Marker 
+                                    key={lote.id} 
+                                    position={latLng} 
+                                    icon={createLoteMarkerIcon(isSelected, lote.urgente)}
+                                    eventHandlers={{
+                                        click: () => setLoteSeleccionado(lote.id)
+                                    }}
+                                >
+                                    <Popup>
+                                        <div className="font-sans p-1 text-slate-800 w-[150px]">
+                                            <h4 className="font-bold text-xs mb-1 truncate">{lote.titulo}</h4>
+                                            <p className="text-[10px] text-slate-500 mb-2 truncate">
+                                                <i className="pi pi-map-marker text-green-500"></i> {lote.donante_nombre}
+                                            </p>
+                                            <p className="text-[10px] font-bold text-slate-600 mb-2">Cantidad: {lote.cantidad}</p>
+                                            <button 
+                                                onClick={(e) => handleReservar(lote, e)}
+                                                className="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] py-1 px-3 rounded-lg border-none cursor-pointer w-full shadow-sm"
+                                            >
+                                                Reservar
+                                            </button>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            );
+                        })}
+                    </MapContainer>
                 </div>
 
                 {/* PANEL FLOTANTE DE LISTA DE ALIMENTOS */}
@@ -179,6 +289,8 @@ const ReceptorExplorer = () => {
                                 <input
                                     type="text"
                                     placeholder="Buscar por zona o alimento..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full bg-slate-100/80 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
                                 />
                             </div>
@@ -187,14 +299,14 @@ const ReceptorExplorer = () => {
                         {/* Lista Escrolleable con DataView */}
                         <div className="flex-1 overflow-y-auto p-4">
                             <DataView 
-                                value={lotesDisponibles} 
+                                value={filteredLotes} 
                                 itemTemplate={alertTemplate} 
                                 pt={{
                                     content: { className: "bg-transparent border-none p-0" }
                                 }}
                             />
                             
-                            {lotesDisponibles.length === 0 && (
+                            {filteredLotes.length === 0 && (
                                 <div className="text-center py-10">
                                     <i className="pi pi-map text-4xl text-slate-300 mb-2"></i>
                                     <p className="text-slate-400 font-bold">No hay donaciones activas en este momento.</p>

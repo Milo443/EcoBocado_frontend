@@ -6,14 +6,18 @@ import { Toast } from 'primereact/toast';
 import PageHeader from '../../components/layout/PageHeader';
 import { authService } from '../../services/authService';
 import { useLoading } from '../../contexts/LoadingContext';
+import LocationSelectorModal from '../../components/common/LocationSelectorModal';
 
 const Settings = () => {
     const [profile, setProfile] = useState({
         nombre: '',
         email: '',
         direccion: '',
+        latitud: null,
+        longitud: null,
         telefono: ''
     });
+    const [showMapModal, setShowMapModal] = useState(false);
     const toast = useRef(null);
     const { setIsLoading } = useLoading();
 
@@ -31,6 +35,8 @@ const Settings = () => {
             await authService.updatePerfil({
                 nombre: profile.nombre,
                 direccion: profile.direccion,
+                latitud: profile.latitud,
+                longitud: profile.longitud,
                 telefono: profile.telefono
             });
             toast.current.show({ severity: 'success', summary: 'Éxito', detail: 'Perfil actualizado' });
@@ -65,9 +71,24 @@ const Settings = () => {
                             <label className="text-sm font-bold text-slate-600">Email de contacto</label>
                             <InputText value={profile.email} disabled className="p-inputtext-sm opacity-60" />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 md:col-span-2">
                             <label className="text-sm font-bold text-slate-600">Dirección Física</label>
-                            <InputText value={profile.direccion} onChange={(e) => setProfile({...profile, direccion: e.target.value})} className="p-inputtext-sm" />
+                            <div className="flex gap-2">
+                                <InputText value={profile.direccion} onChange={(e) => setProfile({...profile, direccion: e.target.value})} className="p-inputtext-sm flex-1" />
+                                <Button 
+                                    type="button"
+                                    icon="pi pi-map-marker" 
+                                    onClick={() => setShowMapModal(true)} 
+                                    className="p-button-outlined p-button-success p-button-sm rounded-xl px-4" 
+                                    tooltip="Ubicar en mapa"
+                                    tooltipOptions={{ position: 'top' }}
+                                />
+                            </div>
+                            {profile.latitud && (
+                                <span className="text-[10px] text-green-600 font-bold mt-1 flex items-center gap-1">
+                                    <i className="pi pi-check-circle"></i> Ubicación guardada ({profile.latitud.toFixed(4)}, {profile.longitud.toFixed(4)})
+                                </span>
+                            )}
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-bold text-slate-600">Teléfono de Contacto</label>
@@ -93,6 +114,19 @@ const Settings = () => {
                     <Button label="Guardar Cambios" icon="pi pi-check" onClick={handleSave} className="p-button-success rounded-xl px-10 py-3 font-bold" />
                 </div>
             </div>
+            <LocationSelectorModal 
+                visible={showMapModal} 
+                onHide={() => setShowMapModal(false)} 
+                onConfirm={(loc) => {
+                    setProfile({
+                        ...profile,
+                        direccion: loc.direccion,
+                        latitud: loc.lat,
+                        longitud: loc.lng
+                    });
+                }}
+                initialLocation={profile.latitud ? { lat: profile.latitud, lng: profile.longitud } : null}
+            />
         </div>
     );
 };
