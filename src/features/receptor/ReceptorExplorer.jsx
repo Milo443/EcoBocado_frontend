@@ -73,6 +73,7 @@ const ReceptorExplorer = () => {
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
     const [lotesDisponibles, setLotesDisponibles] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [verMapaMovil, setVerMapaMovil] = useState(false);
     const toast = useRef(null);
     const { setIsLoading: setGlobalLoading } = useLoading();
     const { user } = useAuth();
@@ -161,7 +162,12 @@ const ReceptorExplorer = () => {
 
     const alertTemplate = (lote) => (
         <div 
-            onClick={() => setLoteSeleccionado(lote.id)}
+            onClick={() => {
+                setLoteSeleccionado(lote.id);
+                if (window.innerWidth < 768) {
+                    setVerMapaMovil(true);
+                }
+            }}
             className={`bg-white rounded-2xl p-4 cursor-pointer transition-all border mb-3 ${loteSeleccionado === lote.id ? 'border-green-500 shadow-md ring-1 ring-green-500' : 'border-slate-100 shadow-sm hover:border-slate-300'}`}
         >
             <div className="flex justify-between items-start mb-2">
@@ -206,17 +212,17 @@ const ReceptorExplorer = () => {
     );
 
     return (
-        <div className="h-full bg-slate-50 font-sans selection:bg-green-200 overflow-hidden relative">
+        <div className="h-[calc(100vh-4rem)] md:h-screen bg-slate-50 font-sans selection:bg-green-200 overflow-hidden relative -m-4 md:-m-8 lg:-m-12">
             <Toast ref={toast} position="top-right" />
 
-            <main className="flex flex-col md:flex-row relative h-full">
+            <main className="flex flex-col md:flex-row relative h-full w-full">
 
                 {/* MAPA REAL LEAFLET */}
                 <div className="absolute inset-0 z-0 bg-slate-200 h-full w-full">
                     <MapContainer 
                         center={userLocation || [3.4516, -76.5320]} 
                         zoom={13} 
-                        scrollWheelZoom={true} 
+                        scrollWheelZoom={false} 
                         style={{ height: '100%', width: '100%' }}
                     >
                         <TileLayer
@@ -273,9 +279,9 @@ const ReceptorExplorer = () => {
                     </MapContainer>
                 </div>
 
-                {/* PANEL FLOTANTE DE LISTA DE ALIMENTOS */}
-                <div className="relative z-10 w-full md:w-96 md:h-full flex flex-col pointer-events-none md:p-6">
-                    <div className="bg-white/90 backdrop-blur-md md:rounded-3xl shadow-2xl border border-white/50 flex flex-col h-full pointer-events-auto overflow-hidden">
+                {/* PANEL DE LISTA DE ALIMENTOS */}
+                <div className={`${verMapaMovil ? 'hidden md:flex' : 'flex'} relative z-10 w-full md:w-96 h-full flex-col pointer-events-auto`}>
+                    <div className="bg-white/95 backdrop-blur-md border-r border-slate-200 flex flex-col h-full overflow-hidden shadow-2xl">
 
                         {/* Cabecera del Panel */}
                         <div className="p-5 border-b border-slate-200/50 bg-white/50">
@@ -316,6 +322,16 @@ const ReceptorExplorer = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Botón flotante para alternar entre Mapa y Lista en móvil */}
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30 md:hidden">
+                <Button 
+                    label={verMapaMovil ? "Ver Lista" : "Ver Mapa"} 
+                    icon={verMapaMovil ? "pi pi-list" : "pi pi-map"} 
+                    onClick={() => setVerMapaMovil(!verMapaMovil)} 
+                    className="p-button-success shadow-2xl rounded-full px-5 py-2.5 font-bold text-sm tracking-wide transition-transform active:scale-95 cursor-pointer"
+                />
+            </div>
         </div>
     );
 };
