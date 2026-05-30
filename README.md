@@ -127,4 +127,91 @@ Estructura de la carpeta `src`:
 4. **Impacto**: Una vez completada la donación (posiblemente confirmada vía un escaneo QR), el backend actualiza el `ImpactoModule`, y el frontend refleja los logros en el dashboard (animados con GSAP/Chart.js).
 
 ---
-*Documentación generada automáticamente basada en la inspección de los repositorios frontend y backend de EcoBocado.*
+
+## 5. Diagramas de Arquitectura y Procesos
+
+### 5.1 Arquitectura General (C4 Context)
+Este diagrama ilustra la separación de responsabilidades entre el cliente (SPA), el Gateway (NestJS) y la arquitectura híbrida de base de datos.
+
+```mermaid
+graph TD
+    Client[Frontend: React + Vite SPA]
+    Gateway[Backend: NestJS REST API]
+    DB_PG[(PostgreSQL\nUsuarios & Reservas)]
+    DB_Mongo[(MongoDB\nLotes & Impacto)]
+
+    Client -->|Peticiones HTTP/REST| Gateway
+    Gateway -->|TypeORM| DB_PG
+    Gateway -->|Mongoose| DB_Mongo
+```
+
+### 5.2 Modelo Conceptual de Base de Datos (Relaciones)
+Aunque el sistema usa una base de datos políglota, conceptualmente las entidades se relacionan de la siguiente manera. **PostgreSQL** maneja la integridad y las transacciones críticas de usuarios y reservas, mientras **MongoDB** permite agilidad para los lotes y el cálculo de impacto.
+
+```mermaid
+erDiagram
+    USUARIO {
+        uuid id
+        string email
+        string password
+        enum role "DONANTE | RECEPTOR"
+    }
+    LOTE {
+        objectId _id
+        uuid donanteId
+        string titulo
+        string descripcion
+        string estado "DISPONIBLE | RESERVADO | ENTREGADO"
+    }
+    RESERVA {
+        uuid id
+        uuid receptorId
+        string loteId
+        string estado "PENDIENTE | CONFIRMADA | CANCELADA"
+        timestamp fecha
+    }
+
+    USUARIO ||--o{ LOTE : "publica (Donante)"
+    USUARIO ||--o{ RESERVA : "solicita (Receptor)"
+    LOTE ||--o| RESERVA : "es bloqueado por"
+```
+
+### 5.3 Pipeline de Flujo Principal: Donación y Reserva
+El siguiente diagrama de secuencia detalla cómo los distintos actores interactúan con el Frontend, y cómo el Backend orquesta la transacción distribuida entre Mongo y Postgres para asegurar que no haya problemas de concurrencia.
+
+```mermaid
+sequenceDiagram
+    actor Donante
+    actor Receptor
+    participant Front as Frontend (React)
+    participant API as Backend (NestJS)
+    participant PG as PostgreSQL (Transaccional)
+    participant Mongo as MongoDB (Documentos)
+
+    Donante->>Front: Publica nuevo Lote de comida
+    Front->>API: POST /api/v1/lotes
+    API->>Mongo: Guarda Lote (estado: DISPONIBLE)
+    API-->>Front: 201 Created
+
+    Receptor->>Front: Busca comida en el mapa
+    Front->>API: GET /api/v1/lotes
+    API->>Mongo: Obtiene lotes DISPONIBLES
+    API-->>Front: Muestra Lotes
+
+    Receptor->>Front: Solicita reservar un Lote
+    Front->>API: POST /api/v1/reservas
+    
+    rect rgb(200, 220, 240)
+    Note right of API: Inicio Transacción Distribuida
+    API->>Mongo: Verifica Lote (¿Sigue DISPONIBLE?)
+    API->>PG: Inicia QueryRunner / Transacción
+    API->>PG: Crea y guarda Reserva (PENDIENTE)
+    API->>Mongo: Actualiza Lote a RESERVADO
+    API->>PG: Commit Transacción (ACID)
+    end
+    
+    API-->>Front: 201 Reserva Exitosa
+```
+
+---
+*Documentación generada y enriquecida automáticamente basada en la inspección de los repositorios frontend y backend de EcoBocado.*
