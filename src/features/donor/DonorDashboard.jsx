@@ -16,6 +16,7 @@ import { useLoading } from '../../contexts/LoadingContext';
 import { Toast } from 'primereact/toast';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import QRScannerModal from './components/QRScannerModal';
+import { Dialog } from 'primereact/dialog';
 
 
 const DonorDashboard = () => {
@@ -26,8 +27,21 @@ const DonorDashboard = () => {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [selectedLote, setSelectedLote] = useState(null);
     const [loteToEdit, setLoteToEdit] = useState(null);
+    const [showDemoModal, setShowDemoModal] = useState(false);
     const { setIsLoading: setGlobalLoading } = useLoading();
     const toast = React.useRef(null);
+
+    useEffect(() => {
+        const hasBeenWarned = localStorage.getItem('ecobocado_demo_warned');
+        if (!hasBeenWarned) {
+            setShowDemoModal(true);
+        }
+    }, []);
+
+    const handleCloseDemoModal = () => {
+        setShowDemoModal(false);
+        localStorage.setItem('ecobocado_demo_warned', 'true');
+    };
 
     const fetchData = async () => {
         try {
@@ -103,6 +117,19 @@ const DonorDashboard = () => {
                 detail: 'El QR escaneado no coincide con esta reserva.' 
             });
         }
+    };
+
+    const confirmManualComplete = (lote) => {
+        confirmDialog({
+            message: `¿Deseas registrar la entrega de "${lote.titulo}" manualmente sin escanear el código QR?`,
+            header: 'Confirmar Entrega Manual',
+            icon: 'pi pi-info-circle',
+            acceptLabel: 'Sí, completar',
+            rejectLabel: 'Cancelar',
+            acceptClassName: 'p-button-success rounded-lg font-bold px-4 py-2 text-sm',
+            rejectClassName: 'p-button-text p-button-secondary rounded-lg font-bold px-4 py-2 text-sm',
+            accept: () => handleCompletePickup(lote.reserva_id),
+        });
     };
 
     const handleCompletePickup = async (reservaId) => {
@@ -209,13 +236,22 @@ const DonorDashboard = () => {
 
                 <div className="flex gap-1">
                     {lote.estado === 'RESERVADO' ? (
-                        <Button 
-                            label="Completar" 
-                            icon="pi pi-check-circle" 
-                            size="small" 
-                            className="p-button-success rounded-lg" 
-                            onClick={() => handleOpenScanner(lote)}
-                        />
+                        <div className="flex gap-2">
+                            <Button 
+                                label="Escanear QR" 
+                                icon="pi pi-qrcode" 
+                                size="small" 
+                                className="p-button-info rounded-lg text-xs" 
+                                onClick={() => handleOpenScanner(lote)}
+                            />
+                            <Button 
+                                label="Completar" 
+                                icon="pi pi-check-circle" 
+                                size="small" 
+                                className="p-button-success rounded-lg text-xs" 
+                                onClick={() => confirmManualComplete(lote)}
+                            />
+                        </div>
                     ) : lote.estado === 'ACTIVO' ? (
                         <div className="flex gap-1">
                             <Button icon="pi pi-pencil" className="p-button-rounded p-button-text p-button-secondary" onClick={() => handleEdit(lote)} />
@@ -332,6 +368,50 @@ const DonorDashboard = () => {
                 onHide={() => setIsScannerOpen(false)}
                 onScanSuccess={handleScanSuccess}
             />
+
+            {/* Modal de Advertencia de Datos Demo */}
+            <Dialog
+                header={
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <i className="pi pi-info-circle text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">Modo Demostración Activo</h2>
+                            <p className="text-sm text-slate-500 font-normal">Información de la plataforma de evaluación</p>
+                        </div>
+                    </div>
+                }
+                visible={showDemoModal}
+                onHide={handleCloseDemoModal}
+                className="w-full max-w-lg mx-4"
+                contentClassName="rounded-b-2xl"
+                headerClassName="rounded-t-2xl border-b border-slate-100"
+                maskClassName="backdrop-blur-sm bg-slate-900/40"
+                draggable={false}
+                footer={
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <Button
+                            label="¡Entendido!"
+                            icon="pi pi-check"
+                            onClick={handleCloseDemoModal}
+                            className="p-button-success shadow-lg px-6 font-bold rounded-xl"
+                        />
+                    </div>
+                }
+            >
+                <div className="mt-4 text-slate-600 space-y-4">
+                    <p className="leading-relaxed text-sm">
+                        ¡Bienvenido a <strong>EcoBocado</strong>! Para que puedas experimentar y evaluar todas las funciones del MVP de forma interactiva, hemos poblado esta cuenta con datos de prueba realistas.
+                    </p>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex gap-3 items-start">
+                        <i className="pi pi-sparkles text-green-500 text-lg mt-0.5"></i>
+                        <p className="text-sm leading-relaxed text-slate-500">
+                            Podrás visualizar métricas simuladas en el dashboard, ver el historial de impacto y probar el flujo de entrega de lotes (usando tanto el escaneo QR como el botón directo de confirmación).
+                        </p>
+                    </div>
+                </div>
+            </Dialog>
 
             <ConfirmDialog />
         </div>

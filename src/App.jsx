@@ -15,6 +15,7 @@ import ReceptorLayout from './features/receptor/components/ReceptorLayout';
 import PickupHistory from './features/receptor/PickupHistory';
 import ReceptorSettings from './features/receptor/ReceptorSettings';
 import ActiveReservations from './features/receptor/ActiveReservations';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 /**
  * Componente interno para manejar la lógica de carga global
@@ -42,9 +43,14 @@ const AppContent = () => {
           <Route path="/login" element={<LoginPage />} />
           
           {/* Rutas de Donante con Layout */}
-          {/* aqui quedara el auth guard */}
-
-          <Route path="/donante" element={<DonorLayout />}>
+          <Route 
+            path="/donante" 
+            element={
+              <ProtectedRoute allowedRoles={['DONOR']}>
+                <DonorLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="dashboard" element={<DonorDashboard />} />
             <Route path="publicaciones" element={<MyPublications />} />
             <Route path="impacto" element={<HistoricalImpact />} />
@@ -52,7 +58,14 @@ const AppContent = () => {
           </Route>
 
           {/* Rutas de Receptor con Layout */}
-          <Route path="/receptor" element={<ReceptorLayout />}>
+          <Route 
+            path="/receptor" 
+            element={
+              <ProtectedRoute allowedRoles={['RECEPTOR']}>
+                <ReceptorLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="explorar" element={<ReceptorExplorer />} />
             <Route path="reservas" element={<ActiveReservations />} />
             <Route path="historial" element={<PickupHistory />} />

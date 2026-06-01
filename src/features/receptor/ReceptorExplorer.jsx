@@ -8,6 +8,7 @@ import { reservaService } from '../../services/reservaService';
 import { useAuth } from '../../contexts/AuthContext';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { Dialog } from 'primereact/dialog';
 
 // Iconos Leaflet personalizados
 const userMarkerIcon = L.divIcon({
@@ -77,6 +78,19 @@ const ReceptorExplorer = () => {
     const toast = useRef(null);
     const { setIsLoading: setGlobalLoading } = useLoading();
     const { user } = useAuth();
+    const [showDemoModal, setShowDemoModal] = useState(false);
+
+    useEffect(() => {
+        const hasBeenWarned = localStorage.getItem('ecobocado_demo_warned');
+        if (!hasBeenWarned) {
+            setShowDemoModal(true);
+        }
+    }, []);
+
+    const handleCloseDemoModal = () => {
+        setShowDemoModal(false);
+        localStorage.setItem('ecobocado_demo_warned', 'true');
+    };
 
     const userLocation = useMemo(() => {
         if (user && user.latitud && user.longitud) {
@@ -322,6 +336,50 @@ const ReceptorExplorer = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Modal de Advertencia de Datos Demo */}
+            <Dialog
+                header={
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <i className="pi pi-info-circle text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">Modo Demostración Activo</h2>
+                            <p className="text-sm text-slate-500 font-normal">Información de la plataforma de evaluación</p>
+                        </div>
+                    </div>
+                }
+                visible={showDemoModal}
+                onHide={handleCloseDemoModal}
+                className="w-full max-w-lg mx-4"
+                contentClassName="rounded-b-2xl"
+                headerClassName="rounded-t-2xl border-b border-slate-100"
+                maskClassName="backdrop-blur-sm bg-slate-900/40"
+                draggable={false}
+                footer={
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <Button
+                            label="¡Entendido!"
+                            icon="pi pi-check"
+                            onClick={handleCloseDemoModal}
+                            className="p-button-success shadow-lg px-6 font-bold rounded-xl"
+                        />
+                    </div>
+                }
+            >
+                <div className="mt-4 text-slate-600 space-y-4">
+                    <p className="leading-relaxed text-sm">
+                        ¡Bienvenido a <strong>EcoBocado</strong>! Para que puedas experimentar y evaluar todas las funciones del MVP de forma interactiva, hemos poblado esta cuenta con datos de prueba realistas.
+                    </p>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex gap-3 items-start">
+                        <i className="pi pi-sparkles text-green-500 text-lg mt-0.5"></i>
+                        <p className="text-sm leading-relaxed text-slate-500">
+                            Podrás visualizar métricas simuladas en el dashboard, ver el historial de impacto y probar el flujo de entrega de lotes (usando tanto el escaneo QR como el botón directo de confirmación).
+                        </p>
+                    </div>
+                </div>
+            </Dialog>
 
             {/* Botón flotante para alternar entre Mapa y Lista en móvil */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30 md:hidden">
